@@ -62,6 +62,7 @@ class Worker:
                 channel.queue_declare(queue=self.opts.queue_name, durable=True)
                 channel.basic_qos(prefetch_count=1)
                 channel.basic_consume(self.on_message, self.opts.queue_name)
+                sleep = 0.01
                 channel.start_consuming()
             except SystemExit:
                 log.info("System exit caught, exiting")
@@ -71,10 +72,6 @@ class Worker:
             except Exception:
                 log.exception("Could not connect to %s" %
                               self.opts.queue_server)
-                if channel.is_open():
-                    channel.close()
-                if connection.is_open():
-                    connection.close()
 
     def on_message(self, channel, method_frame, header_frame, body):
         """
