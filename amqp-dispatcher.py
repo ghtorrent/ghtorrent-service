@@ -83,46 +83,10 @@ class Worker:
             redirects stdin and stderr to log.info and log.warn respectively.
         """
         try:
-            log.debug("worker %d got message %s" % (os.getpid(), body))
-            def logger_worker(logger, type, stream):
-                fd = stream.fileno()
-                fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-                fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-                try:
-                    msg = stream.read()
-                except:
-                    msg = ''
-
-                if msg.strip():
-                    if type == "WARN":
-                        log.warn("%s" % msg)
-                    elif type == "INFO":
-                        log.info("%s" % msg)
-                    else:
-                        print msg
-
-            process = subprocess.Popen([self.cmdline, body],
-                stdin=sys.stdin,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
-
-            stdout_logger = Thread(target=logger_worker,
-                                   args=[log, "INFO", process.stdout])
-            stdout_logger.daemon = True
-            stdout_logger.start()
-            stderr_logger = Thread(target=logger_worker,
-                                   args=[log, "WARN", process.stderr])
-            stderr_logger.daemon = True
-            stderr_logger.start()
-
-            process.wait()
-            stdout_logger.join(timeout=1)
-            stderr_logger.join(timeout=1)
-
-            if process.returncode is not 0:
-                log.warn("Process: %s returned code :%d" %
-                         (" ".join([self.cmdline, body]), process.returncode))
-
+            log.debug("got message %s" % body)
+            status = os.system(" ".join([self.cmdline, body]))
+            if status != 0:
+                log.warn("failed: %s" % (" ".join([self.cmdline, body])))
             self.msgs += 1
             channel.basic_ack(delivery_tag=method_frame.delivery_tag)
         except OSError:
