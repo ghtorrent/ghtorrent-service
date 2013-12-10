@@ -34,3 +34,7 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+app/templates/base.html
+
+app/templates/index.html

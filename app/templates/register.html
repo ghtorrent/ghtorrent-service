@@ -1,0 +1,18 @@
+{% from "_formhelpers.html" import render_field %}
+<html>
+  <head>
+    <title>{{title}}</title>
+  </head>
+  <body>
+  	<form method="post" action="">
+	  {{form.hidden_tag()}}
+	  <dl>
+	    {{ render_field(form.name) }}<br>
+	    {{ render_field(form.email) }}<br>
+	    {{ render_field(form.requested_projects) }}<br>
+	    {{ render_field(form.accept_tos) }}
+	  </dl>
+	  <p><input type="submit" value="Submit request">
+	</form>
+  </body>
+</html>
