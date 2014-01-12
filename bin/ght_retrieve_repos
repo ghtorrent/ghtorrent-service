@@ -1,0 +1,255 @@
+require 'ghtorrent'
+require 'bunny'
+require 'uri'
+
+
+class GHTRetrieveRepos < GHTorrent::Command
+
+  include GHTorrent::Settings
+  include GHTorrent::Logging
+
+  def logger
+    @logger ||= Logger.new(STDOUT)
+    @logger
+  end
+
+  def prepare_options(options)
+    options.banner <<-BANNER
+Retrieve data for multiple repos in parallel. To work, it requires
+a mapping file formatted as follows:
+
+IP UNAME PASSWD NUM_PROCS where
+
+IP = address to use for outgoing requests (use 0.0.0.0 on non-multihomed hosts)
+UNAME = Github user name to use for outgoing requests
+PASSWD = Github password to use for outgoing requests
+NUM_PROCS = Number of processes to spawn for this IP/UNAME combination
+
+Values in the config.yaml file set with the -c command are overriden.
+
+#{command_name} [options] mapping-file
+
+    BANNER
+    options.opt :queue, 'Queue to retrieve project names from',
+                :short => 'q', :default => 'retrieve-repo', :type => :string
+
+  end
+
+  def validate
+    super
+    Trollop::die 'Argument mapping-file is required' unless not args[0].nil?
+  end
+
+  def go
+
+    configs = File.open(ARGV[0]).readlines.map do |line|
+      next if line =~ /^#/
+      ip,name,passwd,instances = line.strip.split(/ /)
+      (1..instances.to_i).map do |i|
+        newcfg = self.settings.clone
+        newcfg = override_config(newcfg, :attach_ip, ip)
+        newcfg = override_config(newcfg, :github_username, name)
+        newcfg = override_config(newcfg, :github_passwd, passwd)
+        newcfg = override_config(newcfg, :mirror_history_pages_back, 1000)
+        newcfg = override_config(newcfg, :mirror_commit_pages_new_repo, 1000)
+        newcfg
+      end
+    end.flatten.select{|x| !x.nil?}
+
+    children = configs.map do |config|
+      pid = Process::fork
+
+      if pid.nil?
+        retriever = GHTRepoRetriever.new(config, options[:queue])
+
+        Signal.trap('TERM') {
+          retriever.stop
+        }
+
+        retriever.run(self)
+        exit
+      else
+        debug "Parent #{Process.pid} forked child #{pid}"
+        pid
+      end
+    end
+
+    debug 'Waiting for children'
+    begin
+      children.each do |pid|
+        debug "Waiting for child #{pid}"
+        Process.waitpid(pid, 0)
+        debug "Child #{pid} exited"
+      end
+    rescue Interrupt
+      debug 'Stopping'
+    end
+  end
+end
+
+class GHTRepoRetriever
+
+  include GHTorrent::Settings
+  include GHTorrent::Retriever
+  include GHTorrent::Persister
+
+  def initialize(config, queue)
+    @config = config
+    @queue = queue
+  end
+
+  def logger
+    @logger ||= Logger.new(STDOUT)
+  end
+
+  def ght
+    @ght ||= TransactedGhtorrent.new(@config)
+    @ght
+  end
+
+  def settings
+    @config
+  end
+
+  def amqp_connection
+    if @amqp_con.nil? or @amqp_con.closed?
+      @amqp_con = Bunny.new(:host => config(:amqp_host),
+                       :port => config(:amqp_port),
+                       :username => config(:amqp_username),
+                       :password => config(:amqp_password))
+      @amqp_con.start
+      debug "Connection to #{config(:amqp_host)} succeeded"
+      @amqp_channel = nil
+    end
+    @amqp_con
+  end
+
+  def amqp_channel
+    if @amqp_channel.nil? or @amqp_channel.closed?
+      @amqp_channel ||= amqp_connection.create_channel
+      debug "Setting prefetch to #{config(:amqp_prefetch)}"
+      @amqp_channel.prefetch(config(:amqp_prefetch))
+      @amqp_exch = nil
+      @amqp_queue = nil
+    end
+    @amqp_channel
+  end
+
+  def amqp_exchange
+    amqp_channel
+    @amqp_exch ||= amqp_channel.topic(config(:amqp_exchange), :durable => true,
+                                      :auto_delete => false)
+  end
+
+  def amqp_queue
+    amqp_channel
+    @amqp_queue ||= amqp_channel.queue(@queue, :durable => true)
+    @amqp_queue.bind(amqp_exchange)
+    @amqp_queue
+  end
+
+  def run(command)
+
+    job_id, owner, repo = ''
+
+    def send_job_status(job_id, owner, repo, status, details = '')
+      amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
+                            {:timestamp => Time.now.to_i,
+                             :persistent => true})
+    end
+
+    stopped = false
+    while not stopped
+      begin
+        amqp_queue.subscribe(:block => true,
+                             :ack => true) do |delivery_info, properties, msg|
+          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
+
+
+          job_id, owner, repo = msg.split(/ /)
+          db_name = "job#{job_id}"
+
+          db_url = URI(config(:sql_url))
+          db_url.path = "/" + db_name
+          @config = merge_config_values(@config, {:sql_url => db_url.to_s})
+
+          case db_url.scheme
+            when 'mysql2'
+              require 'mysql2'
+              client = Mysql2::Client.new(:host => db_url.host,
+                                          :username => db_url.user,
+                                          :password => db_url.password)
+              # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
+              # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
+              client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
+              client.close
+            else
+              raise Exception("Unsupported DB type #{db_url.scheme}")
+          end
+
+          user_entry = ght.transaction { ght.ensure_user(owner, false, false) }
+
+          if user_entry.nil?
+            warn("Cannot find user #{owner}")
+            send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
+            next
+          end
+
+          repo_entry = ght.transaction { ght.ensure_repo(owner, repo) }
+
+          if repo_entry.nil?
+            warn("Cannot find repository #{owner}/#{repo}")
+            send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
+            next
+          end
+
+          debug("Retrieving repo #{owner}/#{repo}")
+
+          def send_message(function, user, repo)
+            ght.send(function, user, repo, refresh = false)
+          end
+
+          functions = %w(ensure_commits ensure_forks ensure_pull_requests
+            ensure_issues ensure_project_members ensure_watchers ensure_labels)
+
+          functions.each do |x|
+            begin
+              send_job_status(job_id, owner, repo, 'WORKING',
+                              "Retrieving #{x.split(/_/)[1..-1]}")
+              send_message(x, owner, repo)
+            rescue Exception
+              warn("Error processing #{x} for #{owner}/#{repo}")
+              send_job_status(job_id, owner, repo, 'WORKING',
+                              "Failed to retrieve #{x.split(/_/)[1..-1]}")
+              next
+            end
+          end
+          send_job_status(job_id, owner, repo, 'FINISHED')
+        end
+
+      rescue Bunny::TCPConnectionFailed => e
+        warn "Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
+        sleep(1)
+      rescue Bunny::PossibleAuthenticationFailureError => e
+        warn "Could not authenticate as #{conn.username}"
+        stopped = true
+      rescue Bunny::NotFound, Bunny::AccessRefused, Bunny::PreconditionFailed => e
+        warn "Channel error: #{e}. Retrying in 1 sec"
+        sleep(1)
+      rescue Interrupt => _
+        send_job_status(job_id, owner, repo, 'STOPPED', 'Retrieval stopped on sysadmin request')
+        stopped = true
+      rescue Exception => e
+        send_job_status(job_id, owner, repo, 'FAILED', e.message)
+        raise e
+      end
+    end
+
+    amqp_channel.close unless @amqp_channel.nil?
+    amqp_connection.close unless @amqp_connection.nil?
+
+  end
+
+end
+
+GHTRetrieveRepos.run(ARGV)
