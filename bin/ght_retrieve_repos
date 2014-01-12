@@ -144,7 +144,7 @@ class GHTRepoRetriever
   def amqp_queue
     amqp_channel
     @amqp_queue ||= amqp_channel.queue(@queue, :durable => true)
-    @amqp_queue.bind(amqp_exchange)
+    @amqp_queue.bind(amqp_exchange, :routing_key => 'ghtorrent.service')
     @amqp_queue
   end
 
@@ -155,7 +155,8 @@ class GHTRepoRetriever
     def send_job_status(job_id, owner, repo, status, details = '')
       amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
                             {:timestamp => Time.now.to_i,
-                             :persistent => true})
+                             :persistent => true,
+                             :routing_key => "ghtorrent.service.result"})
     end
 
     stopped = false
@@ -176,13 +177,21 @@ class GHTRepoRetriever
           case db_url.scheme
             when 'mysql2'
               require 'mysql2'
-              client = Mysql2::Client.new(:host => db_url.host,
-                                          :username => db_url.user,
-                                          :password => db_url.password)
-              # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
-              # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
-              client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
-              client.close
+              begin
+                lock = File.open("/tmp/#{db_name}.lock", File::RDWR|File::CREAT, 0644)
+                lock.flock(File::LOCK_EX)
+                debug "Checking DB #{db_name}" 
+                client = Mysql2::Client.new(:host => db_url.host,
+                                            :username => db_url.user,
+                                            :password => db_url.password)
+                # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
+                # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
+                client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
+                ght.get_db # Trigger migration run
+                client.close
+              ensure
+                lock.flock(File::LOCK_UN)
+              end
             else
               raise Exception("Unsupported DB type #{db_url.scheme}")
           end
