@@ -1,0 +1,104 @@
+\documentclass{sig-alternate}
+\usepackage{breqn}
+\usepackage{pbox}
+\usepackage{enumitem, array}
+\usepackage{hyperref}
+\usepackage{times}
+\usepackage{balance}
+\usepackage{xspace}
+\usepackage{url}
+
+\setlist{nolistsep}
+\setlength{\textfloatsep}{10pt}
+
+
+\usepackage{listings}
+\lstset{
+  breaklines=true,
+}
+
+% Markup macros for proof-reading
+\usepackage[normalem]{ulem} % for \sout
+\usepackage{xcolor}
+\newcommand{\ra}{$\rightarrow$}
+\newcommand{\ugh}[1]{\textcolor{red}{\uwave{#1}}} % please rephrase
+\newcommand{\ins}[1]{\textcolor{blue}{\uline{#1}}} % please insert
+\newcommand{\del}[1]{\textcolor{red}{\sout{#1}}} % please delete
+\newcommand{\chg}[2]{\textcolor{red}{\sout{#1}}{\ra}\textcolor{blue}{\uline{#2}}} % please change
+
+% Put edit comments in a really ugly standout display
+\usepackage{ifthen}
+\usepackage{amssymb}
+\newboolean{showcomments}
+\setboolean{showcomments}{true} % toggle to show or hide comments
+\ifthenelse{\boolean{showcomments}}
+  {\newcommand{\nb}[2]{
+    \fcolorbox{gray}{yellow}{\bfseries\sffamily\scriptsize#1}
+    {\sf\small$\blacktriangleright$\textit{#2}$\blacktriangleleft$}
+   }
+   \newcommand{\version}{\emph{\scriptsize$-$working$-$}}
+  }
+  {\newcommand{\nb}[2]{}
+   \newcommand{\version}{}
+  }
+
+\newcommand\gs[1]{\nb{Georgios}{#1}}
+\newcommand\bv[1]{\nb{Bogdan}{#1}}
+
+
+\newcommand{\inlinecode}[1] {\lstinline[basicstyle=\ttfamily]{#1}}
+\newcommand{\f}[2]{\text{\textit{#1}}\mbox{#2}}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\def\sharedaffiliation{\end{tabular}\newline\begin{tabular}{c}}
+
+
+\newcommand{\ght}{ \textsc{ght}orrent\xspace}
+\newcommand{\api}{\textsc{api}\xspace}
+
+\def\tud{\textsuperscript{*}}
+\def\tue{\textsuperscript{\dag}}
+
+
+
+\begin{document}
+
+% --- Author Metadata here ---
+%\conferenceinfo{The 11th Working Conference on Mining Software Repositories}{'14 Hyderabad, India}
+%\CopyrightYear{2007} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
+%\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
+% --- End of Author Metadata ---
+
+\title{Lean GHTorrent: GitHub data on demand}
+
+
+\numberofauthors{1}
+
+\author{
+Georgios Gousios\tud, Bogdan Vasilescu\tue, Alexander Serebrenik\tue, Andy Zaidman\tud\\
+\sharedaffiliation
+  \begin{tabular}{ccc}
+    \affaddr{\tud Delft University of Technology} && \affaddr{\tue Eindhoven University of Technology}\\
+   \affaddr{Delft, The Netherlands} && \affaddr{Eindhoven, The Netherlands}\\
+   \email{\{g.gousios, a.e.zaidman\}@tudelft.nl} && \email{\{b.n.vasilescu, a.serebrenik\}@tue.nl} \\
+  \end{tabular}
+}
+
+
+
+\maketitle
+\begin{abstract}
+
+
+\end{abstract}
+
+
+\input{introduction}
+
+
+%{\small
+\bibliographystyle{abbrv}
+\bibliography{ref}
+%}
+
+\end{document}
