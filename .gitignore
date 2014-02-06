@@ -53,3 +53,15 @@ db_repository/versions/001_migration.py
 db_repository/versions/002_migration.py
 
 db_repository/versions/__init__.py
+
+paper/main.log
+
+paper/main.aux
+
+paper/main.out
+
+paper/main.synctex.gz
+
+paper/main.bbl
+
+paper/main.blg
