@@ -56,10 +56,10 @@
 \newcommand{\ght}{ \textsc{ght}orrent\xspace}
 \newcommand{\api}{\textsc{api}\xspace}
 
-%\def\tue{$^\mbox{\rm *}$}
-%\def\boxinc{$^\mbox{\rm \dag}$}
-\def\tue{\textsuperscript{*}}
-\def\boxinc{\textsuperscript{\dag}}
+\def\tud{\textsuperscript{*}}
+\def\tue{\textsuperscript{\dag}}
+
+
 
 \begin{document}
 
@@ -72,29 +72,16 @@
 \title{Lean GHTorrent: GitHub data on demand}
 
 
-\numberofauthors{2}
+\numberofauthors{1}
 
 \author{
-% You can go ahead and credit any number of authors here,
-% e.g. one 'row of three' or two rows (consisting of one row of three
-% and a second row of one, two or three).
-%
-% The command \alignauthor (no curly braces needed) should
-% precede each author name, affiliation/snail-mail address and
-% e-mail address. Additionally, tag each line of
-% affiliation/address with \affaddr, and tag the
-% e-mail address with \email.
-%
-\alignauthor
-Georgios Gousios\\
-       \affaddr{Delft University of Technology}\\
-       \affaddr{Delft, The Netherlands}\\
-       \email{g.gousios@tudelft.nl}
-\alignauthor
-Bogdan Vasilescu\\
-       \affaddr{Eindhoven University of Technology}\\
-       \affaddr{Eindhoven, The Netherlands}\\
-       \email{b.n.vasilescu@tue.nl}
+Georgios Gousios\tud, Bogdan Vasilescu\tue, Alexander Serebrenik\tue, Andy Zaidman\tud\\
+\sharedaffiliation
+  \begin{tabular}{ccc}
+    \affaddr{\tud Delft University of Technology} && \affaddr{\tue Eindhoven University of Technology}\\
+   \affaddr{Delft, The Netherlands} && \affaddr{Eindhoven, The Netherlands}\\
+   \email{\{g.gousios, a.e.zaidman\}@tudelft.nl} && \email{\{b.n.vasilescu, a.serebrenik\}@tue.nl} \\
+  \end{tabular}
 }
 
 
