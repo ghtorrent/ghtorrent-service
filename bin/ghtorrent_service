@@ -1,0 +1,153 @@
+#!/usr/bin/env ruby
+
+require 'sinatra'
+
+require 'haml'
+set :haml, {:ugly => true}
+
+require 'sinatra/sequel'
+set :database, 'sqlite://ght-service.db'
+
+migration "init schema" do
+  database.create_table :users do
+    primary_key :id
+    String      :name, :null => false
+    String      :email, :null => false, :unique => true
+    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+  end
+
+  database.create_table :repos do
+    primary_key :id
+    String      :repo_path, :null => false, :size => 100
+    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+    DateTime    :updated_at
+  end 
+
+  database.create_table :requests do
+    primary_key  :id
+    foreign_key  :user_id, :users, :null => false
+    String       :sha, :size => 40, :unique => true
+    String       :last_msg
+    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+    DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+  end
+
+  database.create_table :request_contents do
+    foreign_key :request_id, :requests, :null => false
+    foreign_key :repo_id, :repos, :null => false
+    TrueClass   :done, :null => false, :default => false
+    DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+  end
+
+end
+
+class NameMissing < Exception
+end
+class EmailProblem < Exception
+end
+class RepoProblem < Exception
+end
+
+error NameMissing do
+  'Missing name from request' + env['sinatra.error'].message
+end
+
+error EmailProblem do
+  'Missing or invalid user email from request: ' + env['sinatra.error'].message
+end
+
+error RepoProblem do
+  'Missing or invalid user email from request: ' + env['sinatra.error'].message
+end
+
+not_found do
+  status 404
+  haml :'404'
+end
+
+get '/' do
+  haml :index
+end
+
+post '/requests' do
+  name  = request[:name]
+  email = request[:email]
+  projects = request[:repos]
+
+  if name.nil? or name.strip.empty?
+    raise NameMissing
+  end
+
+  if email.nil? or email.strip.empty?
+    raise EmailProblem
+  end
+
+  if email.match(/^.+@.+$/).nil?
+    raise EmailProblem, email
+  end
+
+  if projects.nil? or projects.strip.empty?
+    raise RepoProblem, email
+  end
+
+  user = database[:users].where(:email => email).first
+  if user.nil?
+    database[:users].insert(
+        :name => name,
+        :email => email
+    )
+    logger.info "Added user #{name} <#{email}>"
+  end
+  user = database[:users].where(:email => email).first
+
+  unfinished_requests =
+      database.from(:request_contents, :requests)\
+              .where(:request_contents__request_id == :requests__id)\
+              .where(:request_contents__done == false)\
+              .select(:requests__hash)
+
+end
+
+get '/requests/:id' do
+
+end
+
+
+
+__END__
+
+@@index
+!!! 5
+%html
+  %head
+    %meta(charset="utf-8")
+%body
+  .content This is the app
+  %form{ :action => "/requests", :method => "post"}
+    %fieldset
+      %label{:for => "name"} Name:
+      %input{:type => "text", :name => "name", :required => true}
+      %br/
+      %label{:for => "mail"} Email:
+      %input{:type => "text", :name => "email", :required => true}
+
+      %br/
+      %label{:for => "body"} Enter the names of the repositories you want to download, one per line:
+      %br/
+      %textarea{:name => "repos", :cols => "40", :rows => "30"}
+      %br/
+      %input{:type => "submit", :value => "Send", :class => "button"}
+
+@@result
+!!! 5
+%html
+  %head
+    %meta(charset="utf-8")
+%body
+  .content Thanks for using GHTorrent. We sent you an email with a unique
+           URL. Use it to check the status of your request. We will also send
+           you an email when you request is ready to download.
+
+@@ 404
+  .error.title
+    Nothing to see here...
