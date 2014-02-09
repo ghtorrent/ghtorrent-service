@@ -3,13 +3,43 @@
 \section{Introduction}
 \label{sec:intro}
 
-\cite{gousios2012ghtorrent}
-\cite{vasilescu2013stackoverflow}
-\cite{gousios2013ghtorent}
-\cite{gousios2014exploratory}
+During recent years, \gh (2008) has become the largest code host in the world, with more than 5M developers
+collaborating across 10M repositories.
+Due to its support for distributed version control (Git) and pull-based development~\cite{barr2012cohesive}, 
+as well as its modern Web UI and focus on social coding~\cite{dabbish2012social}, \gh has surpassed in size
+and popularity even much older forges such as Sourceforge (1999).
+As a result, numerous projects (especially open source) are migrating their code base to \gh (for instance, 
+the Google query \emph{migrate to github} returns more than 4M results), which now hosts popular projects
+such as Ruby on Rails, Homebrew, Bootstrap, Django or JQuery.
 
-\cite{lee2013git}
-\cite{jiang2013understanding}
+Researchers have quickly jumped on board and have started exploring the richness of \gh data.
+So far, studies focused on 
+building language models of source code~\cite{allamanis2013mining}, 
+understanding the effects of branching and pull-based software development~\cite{lee2013git, gousios2014exploratory}, 
+uncovering associations between crowdsourced knowledge and software development~\cite{vasilescu2013stackoverflow},
+visualizing collaboration and influence~\cite{heller2011visualizing}, 
+exploring the social network of developers~\cite{thung2013network, schall2013follow, jiang2013understanding},
+or investigating how the social nature of \gh impacts collaboration~\cite{dabbish2012social, marlow2013impression}
+and could be used to improve development practices~\cite{pham2013creating, pham2013building}.
 
-\cite{schall2013follow}
-\cite{squire2014forge}
+To facilitate studies of \gh, we have created \ght~\cite{gousios2012ghtorrent, gousios2013ghtorent}, a scalable, 
+queriable, offline mirror of the data offered through the \gh REST API.
+\ght data has already been used in empirical studies (e.g., \cite{gousios2014exploratory, squire2014forge, 
+vasilescu2013stackoverflow}), and a subset of it has been selected as the topic of the Mining Challenge
+at the 2014 Working Conference on Mining Software Repositories.
+
+%, an effort to create a scalable, queriable, offline mirror of data offered through the Github REST API.
+
+
+
+%An outline of the project and bits of the implementation were presented in [2]. Since this work, we extended the collection process to an additional 15 API end points, stabilized the data and metadata schema and developed a service to collaboratively collect and share data. More than 900GB of raw data and 10GB of metadata have been collected and are available for download. In this paper, we present the finalized schema, go through the challenges and limitations of working with the dataset and outline research opportunities that emerge from it.
+
+%works, first on the GHTorrent corpus and then on a carefully selected sample of 291 projects. We find that the pull request model offers fast turnaround, increased opportunities for community engagement and decreased time to incorporate contributions \cite{gousios2014exploratory}
+
+%Visualizing collaboration and influence in the open-source software community \cite{heller2011visualizing}
+%transparency and collaboration \cite{dabbish2012social}
+%Impression formation in online peer production: activity traces and personal profiles \cite{marlow2013impression}
+%language model of source code, based on 352 million lines of Java \cite{allamanis2013mining}
+
+
+%A number of software engineering research studies have already used the artifacts from Github in interesting ways, see [10][11][12][13]. These studies are part of the research community's history of making tools to study the "usual data sources" [14] of the software development process. For example in [10] the authors combine a social graph of Github users with their commit and follow actions. They then use the geographic data in the user profile to geolocate the users and make inferences about influence in the community.
