@@ -30,12 +30,27 @@ at the 2014 edition of the Working Conference on Mining Software Repositories.
 
 In this paper we present the extensions brought to \ght since its official release~\cite{gousios2013ghtorent},
 designed to offer customisable data dumps on demand.
-The new \ght data-on-demand service offers several advantages.
-First, while the \ght project already offered data dumps of both its raw data (MongoDB, currently more than 2TB) 
-and up to date metadata (MySQL, currently more than 20GB), downloading and restoring these dumps can be 
+The new \ght data-on-demand service offers users the possibility to request up-to-date \ght data dumps for 
+any subset of \gh projects, as indicated by completing a web form.
+This offers several advantages.
+Firstly, while the \ght project already offered data dumps of both its raw data (MongoDB, currently more than 2TB) 
+and metadata (MySQL, currently more than 20GB), downloading and restoring these dumps can be 
 very time consuming and might not be necessary if a particular analysis is restricted in scope to say a handful
-of ``interesting'' \gh projects (e.g., the Ruby on Rails project, for which separate data sets started being 
+of ``interesting'' \gh projects (e.g., the Ruby on Rails project, for which separate data sets also started being 
 collected~\cite{wagstrom2013network}).
+
+Secondly, while the idea of running queries with a restricted scope is not necessarily new with respect to
+the official release of \linebreak \ght~\cite{gousios2013ghtorent}, the data-on-demand service enhances replicability
+of results obtained using \ght data. 
+\ght already offered an online query interface with access to an archived version of the relational database, 
+which could be used to restrict the scope of a query.
+However, \gh is a very dynamic platform where developers, projects and wikis are created and deleted constantly.
+Therefore, online queries of \ght data may return different results at different times if project data recorded
+by \ght has been refreshed in the meantime.
+To enhance the replicability~\cite{gonzalez2012reproducibility} of such results, it is therefore preferable to 
+store the exact snapshot of the data set used in the analysis.
+
+%Thirdly, our experiences with curating academic papers 
 
 %downloadable versions of the MongoDB raw dataset, downloading and restoring them to MongoDB can be very time consuming. For this reason, we have created a publicly available version of the data as they are collected by our main MongoDB server. The data is always updated to the latest available MongoDB dump. The only prerequisite is to have the MongoDB client and SSH installed on your machine.
 %
@@ -55,10 +70,6 @@ collected~\cite{wagstrom2013network}).
 %The data is offered as is without any explicit or implicit quality or service guarantee from our part.
 %All operations are logged for security purposes.
 
-%Github is a dynamic site where developers, projects and wikis are created and deleted constantly.
-%\cite{gonzalez2012reproducibility}
-
-%, an effort to create a scalable, queriable, offline mirror of data offered through the Github REST API.
 
 
 
