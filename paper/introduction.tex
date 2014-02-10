@@ -19,14 +19,14 @@ understanding the effects of branching and pull-based software development~\cite
 uncovering associations between crowdsourced knowledge and software development~\cite{vasilescu2013stackoverflow},
 visualizing collaboration and influence~\cite{heller2011visualizing}, 
 exploring the social network of developers~\cite{thung2013network, schall2013follow, jiang2013understanding},
-or investigating how the social nature of \gh impacts collaboration~\cite{dabbish2012social, marlow2013impression}
+or investigating how the social nature of \gh impacts collaboration and impression formation~\cite{dabbish2012social, marlow2013impression}
 and could be used to improve development practices~\cite{pham2013creating, pham2013building}.
 
 To facilitate studies of \gh, we have created \ght~\cite{gousios2012ghtorrent, gousios2013ghtorent}, a scalable, 
 queriable, offline mirror of the data offered through the \gh REST API.
 \ght data has already been used in empirical studies (e.g., \cite{gousios2014exploratory, squire2014forge, 
 vasilescu2013stackoverflow}), and a subset of it has been selected as the topic of the Mining Challenge
-at the 2014 edition of the Working Conference on Mining Software Repositories.
+at the 2014 edition of the Working Conference on Mining Software Repositories (MSR).
 
 In this paper we present the extensions brought to \ght since its official release~\cite{gousios2013ghtorent},
 designed to offer customisable data dumps on demand.
@@ -50,37 +50,11 @@ by \ght has been refreshed in the meantime.
 To enhance the replicability~\cite{gonzalez2012reproducibility} of such results, it is therefore preferable to 
 store the exact snapshot of the data set used in the analysis.
 
-%Thirdly, our experiences with curating academic papers 
+Thirdly, our experiences with curating academic papers based on Stack Exchange data~\cite{vasilescu2012meta} 
+suggest that researchers prefer to work with data dumps rather than online data explorers.
+Even after factoring out papers published at the Mining Challenge at the 2013 edition of MSR (for which Stack 
+Overflow was the topic), an overwhelming fraction of the remaining papers published after 2010 (when the Stack 
+Exchange data explorer became available) have used data dumps rather than the data explorer.
+We hope that by offering customisable \ght data dumps we will encourage researchers to intensify their efforts
+to mine \gh data.
 
-%downloadable versions of the MongoDB raw dataset, downloading and restoring them to MongoDB can be very time consuming. For this reason, we have created a publicly available version of the data as they are collected by our main MongoDB server. The data is always updated to the latest available MongoDB dump. The only prerequisite is to have the MongoDB client and SSH installed on your machine.
-%
-%Obtaining access
-%Send us your public SSH key (usually in ~/.ssh/id_rsa.pub)
-%When we contact you back, you will be able to setup an SSH tunnel with the following command: ssh -L 27017:dutiht.st.ewi.tudelft.nl:27017 ghtorrent@dutiht.st.ewi.tudelft.nl. Keep in mind that no shell will be allocated in the open SSH session.
-%You will then be able to connect to our server using the command: mongo github. There is no password, but please make sure that YOU DO NOT DELETE ANY DATA. Deleting data will only harm other users of the system, which will have to wait for a full restore. The real live database is stored on another machine.
-%Collections available in MongoDB
-%Have a look here.
-%
-%Things to keep in mind
-%The hosting machine, while powerful, is not capable of processing the data very quickly. At the time of this writing, the data is more than 1.9TB.
-%Other people may be using the machine as well. Make sure that you do not run very heavy queries.
-%At any time the machine may become unavailable.
-%Some data may be missing; if you are willing to provide workers to collect them, please contact us.
-%The data is provided in kind to help other people to do research with. Please do not abuse the service.
-%The data is offered as is without any explicit or implicit quality or service guarantee from our part.
-%All operations are logged for security purposes.
-
-
-
-
-%An outline of the project and bits of the implementation were presented in [2]. Since this work, we extended the collection process to an additional 15 API end points, stabilized the data and metadata schema and developed a service to collaboratively collect and share data. More than 900GB of raw data and 10GB of metadata have been collected and are available for download. In this paper, we present the finalized schema, go through the challenges and limitations of working with the dataset and outline research opportunities that emerge from it.
-
-%works, first on the GHTorrent corpus and then on a carefully selected sample of 291 projects. We find that the pull request model offers fast turnaround, increased opportunities for community engagement and decreased time to incorporate contributions \cite{gousios2014exploratory}
-
-%Visualizing collaboration and influence in the open-source software community \cite{heller2011visualizing}
-%transparency and collaboration \cite{dabbish2012social}
-%Impression formation in online peer production: activity traces and personal profiles \cite{marlow2013impression}
-%language model of source code, based on 352 million lines of Java \cite{allamanis2013mining}
-
-
-%A number of software engineering research studies have already used the artifacts from Github in interesting ways, see [10][11][12][13]. These studies are part of the research community's history of making tools to study the "usual data sources" [14] of the software development process. For example in [10] the authors combine a social graph of Github users with their commit and follow actions. They then use the geographic data in the user profile to geolocate the users and make inferences about influence in the community.
