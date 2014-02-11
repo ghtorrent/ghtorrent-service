@@ -28,10 +28,10 @@ queriable, offline mirror of the data offered through the \gh REST API.
 vasilescu2013stackoverflow}), and a subset of it has been selected as the topic of the Mining Challenge
 at the 2014 edition of the Working Conference on Mining Software Repositories (MSR).
 
-In this paper we present the extensions brought to \ght since its official release~\cite{gousios2013ghtorent},
-designed to offer customisable data dumps on demand.
-The new \ght data-on-demand service offers users the possibility to request up-to-date \ght data dumps for 
-any subset of \gh projects, as indicated by completing a web form.
+In response to feedback received from \ght users after its official release~\cite{gousios2013ghtorent},
+in this paper we present a novel feature designed to offer customisable data dumps on demand.
+The new \ght data-on-demand service offers users the possibility to request via a web form up-to-date \ght 
+data dumps (in both MySQL and MongoDB formats) for any collection of \gh repositories.
 This offers several advantages.
 Firstly, while the \ght project already offered data dumps of both its raw data (MongoDB, currently more than 2TB) 
 and metadata (MySQL, currently more than 20GB), downloading and restoring these dumps can be 
@@ -57,4 +57,7 @@ Overflow was the topic), an overwhelming fraction of the remaining papers publis
 Exchange data explorer became available) have used data dumps rather than the data explorer.
 We hope that by offering customisable \ght data dumps we will encourage researchers to intensify their efforts
 to mine \gh data.
+
+The rest of this paper is organised as follows.
+In Section~\ref{sec:arch}
 
