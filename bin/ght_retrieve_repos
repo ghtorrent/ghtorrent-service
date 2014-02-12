@@ -1,6 +1,7 @@
 require 'ghtorrent'
 require 'bunny'
 require 'uri'
+require 'queue_stuff'
 
 
 class GHTRetrieveRepos < GHTorrent::Command
@@ -93,6 +94,8 @@ class GHTRepoRetriever
   include GHTorrent::Retriever
   include GHTorrent::Persister
 
+  include QueueStuff
+
   def initialize(config, queue)
     @config = config
     @queue = queue
@@ -111,43 +114,6 @@ class GHTRepoRetriever
     @config
   end
 
-  def amqp_connection
-    if @amqp_con.nil? or @amqp_con.closed?
-      @amqp_con = Bunny.new(:host => config(:amqp_host),
-                       :port => config(:amqp_port),
-                       :username => config(:amqp_username),
-                       :password => config(:amqp_password))
-      @amqp_con.start
-      debug "Connection to #{config(:amqp_host)} succeeded"
-      @amqp_channel = nil
-    end
-    @amqp_con
-  end
-
-  def amqp_channel
-    if @amqp_channel.nil? or @amqp_channel.closed?
-      @amqp_channel ||= amqp_connection.create_channel
-      debug "Setting prefetch to #{config(:amqp_prefetch)}"
-      @amqp_channel.prefetch(config(:amqp_prefetch))
-      @amqp_exch = nil
-      @amqp_queue = nil
-    end
-    @amqp_channel
-  end
-
-  def amqp_exchange
-    amqp_channel
-    @amqp_exch ||= amqp_channel.topic(config(:amqp_exchange), :durable => true,
-                                      :auto_delete => false)
-  end
-
-  def amqp_queue
-    amqp_channel
-    @amqp_queue ||= amqp_channel.queue(@queue, :durable => true)
-    @amqp_queue.bind(amqp_exchange, :routing_key => 'ghtorrent.service')
-    @amqp_queue
-  end
-
   def run(command)
 
     job_id, owner, repo = ''
@@ -156,22 +122,22 @@ class GHTRepoRetriever
       amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
                             {:timestamp => Time.now.to_i,
                              :persistent => true,
-                             :routing_key => "ghtorrent.service.result"})
+                             :routing_key => RESULT_QUEUE_ROUTEKEY})
     end
 
     stopped = false
     while not stopped
       begin
-        amqp_queue.subscribe(:block => true,
-                             :ack => true) do |delivery_info, properties, msg|
-          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
+        consumer_queue(JOB_QUEUE, JOB_QUEUE_ROUTEKEY).subscribe(
+            :block => true, :ack => true) do |delivery_info, properties, msg|
 
+          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
           db_name = "job#{job_id}"
 
           db_url = URI(config(:sql_url))
-          db_url.path = "/" + db_name
+          db_url.path = "/#{db_name}"
           @config = merge_config_values(@config, {:sql_url => db_url.to_s})
 
           case db_url.scheme
@@ -186,8 +152,11 @@ class GHTRepoRetriever
                                             :password => db_url.password)
                 # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
                 # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
-                client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
-                ght.get_db # Trigger migration run
+                exists = client.query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '#{db_name}'").to_a
+                if exists.empty?
+                  client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
+                  ght.get_db # Trigger migration run
+                end
                 client.close
               ensure
                 lock.flock(File::LOCK_UN)
@@ -254,9 +223,7 @@ class GHTRepoRetriever
       end
     end
 
-    amqp_channel.close unless @amqp_channel.nil?
-    amqp_connection.close unless @amqp_connection.nil?
-
+    amqp_close
   end
 
 end

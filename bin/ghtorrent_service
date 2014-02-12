@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 
+require 'queue_stuff'
 require 'sinatra'
+require 'digest/sha1'
 
 require 'haml'
 set :haml, {:ugly => true}
@@ -18,15 +20,16 @@ migration "init schema" do
 
   database.create_table :repos do
     primary_key :id
-    String      :repo_path, :null => false, :size => 100
+    String      :name, :null => false, :unique => true
     DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
     DateTime    :updated_at
+    String      :last_msg
   end 
 
   database.create_table :requests do
     primary_key  :id
     foreign_key  :user_id, :users, :null => false
-    String       :sha, :size => 40, :unique => true
+    String       :hash, :size => 40, :unique => true
     String       :last_msg
     DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
     DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
@@ -39,25 +42,6 @@ migration "init schema" do
     DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
   end
 
-end
-
-class NameMissing < Exception
-end
-class EmailProblem < Exception
-end
-class RepoProblem < Exception
-end
-
-error NameMissing do
-  'Missing name from request' + env['sinatra.error'].message
-end
-
-error EmailProblem do
-  'Missing or invalid user email from request: ' + env['sinatra.error'].message
-end
-
-error RepoProblem do
-  'Missing or invalid user email from request: ' + env['sinatra.error'].message
 end
 
 not_found do
@@ -75,20 +59,22 @@ post '/requests' do
   projects = request[:repos]
 
   if name.nil? or name.strip.empty?
-    raise NameMissing
+    return haml :error, :locals => {:error => "User name empty"}
   end
 
   if email.nil? or email.strip.empty?
-    raise EmailProblem
+    return haml :error, :locals => {:error => "Email empty"}
   end
 
   if email.match(/^.+@.+$/).nil?
-    raise EmailProblem, email
+    return haml :error, :locals => {:error => "The provided email <#{email}> is not a valid email"}
   end
 
   if projects.nil? or projects.strip.empty?
-    raise RepoProblem, email
+    haml :error, :locals => {:error => "No projects specified"}
   end
+
+  database.loggers << logger
 
   user = database[:users].where(:email => email).first
   if user.nil?
@@ -102,10 +88,72 @@ post '/requests' do
 
   unfinished_requests =
       database.from(:request_contents, :requests)\
-              .where(:request_contents__request_id == :requests__id)\
-              .where(:request_contents__done == false)\
-              .select(:requests__hash)
+              .where(:request_contents__request_id => :requests__id)\
+              .where(:request_contents__done => false)\
+              .select(:requests__hash).all
 
+  unless unfinished_requests.empty?
+    logger.warn("User #{name} has a pending request")
+    return
+  end
+
+  begin
+    database.transaction(:rollback => :reraise, :isolation => :committed) do
+      # Add the request
+      req_hash = Digest::SHA1.hexdigest(("#{user}#{projects}").split(//).shuffle.join)
+      database[:requests].insert(
+        :user_id  => user[:id],
+        :hash => req_hash
+      )
+
+      req = database[:requests].first(:hash => req_hash)
+
+      # Add the repos to the request
+      jobs = projects.split(/\r?\n/).map do |x|
+        x.strip!
+
+        (owner, repository) = x.split(/\//)
+
+        if owner.nil? || !owner.match(/^[a-zA-Z-_.]+$/)
+          logger.warn("Ignoring job: #{x} Wrong user name.")
+          next
+        end
+
+        if repository.nil? || !repository.match(/^[a-zA-Z.-_]+$/)
+          logger.warn("Ignoring job: #{x} Wrong project name.")
+          next
+        end
+
+        # Make sure that the repo exists
+        if database[:repos].first(:name => x).nil?
+          database[:repos].insert(:name => x)
+        end
+
+        repo = database[:repos].first(:name => x)
+
+        database[:request_contents].insert(
+          :repo_id => repo[:id],
+          :request_id => req[:id]
+        )
+
+        [req[:id], owner, repository].flatten
+      end.select{|x| !x.nil?}
+
+      jobs.each do |x|
+        logger.debug("Adding job: #{x[0]} -> #{x[1]}/#{x[2]}")
+        #amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
+        #                      {:timestamp => Time.now.to_i,
+        #                       :persistent => true,
+        #                       :routing_key => JOB_QUEUE})
+      end
+    end
+  rescue Exception => e
+    logger.error e.message
+    logger.error e.backtrace.join("\n")
+    return haml :error, :locals => {:error => 'An error occured that prevented GHTorrent to fullfil your request. Try again later.'}
+  end
+
+  return haml :result, :locals => {:errors => errors}
 end
 
 get '/requests/:id' do
@@ -132,7 +180,7 @@ __END__
       %input{:type => "text", :name => "email", :required => true}
 
       %br/
-      %label{:for => "body"} Enter the names of the repositories you want to download, one per line:
+      %label{:for => "body"} Enter the names of the repositories you want to retrieve, one per line:
       %br/
       %textarea{:name => "repos", :cols => "40", :rows => "30"}
       %br/
@@ -147,6 +195,25 @@ __END__
   .content Thanks for using GHTorrent. We sent you an email with a unique
            URL. Use it to check the status of your request. We will also send
            you an email when your request is ready to download.
+
+@@status
+!!! 5
+%html
+  %head
+    %meta(charset="utf-8")
+%body
+  .content
+
+
+@@error
+!!! 5
+%html
+  %head
+    %meta(charset="utf-8")
+%body
+  %h1 Error
+  .content #{error}
+
 
 @@ 404
   .error.title
