@@ -94,6 +94,25 @@ Georgios Gousios\tud, Bogdan Vasilescu\tue, Alexander Serebrenik\tue, Andy Zaidm
 \maketitle
 \begin{abstract}
 
+In recent years, \gh has become the largest code host in the world, with more than 5M developers
+collaborating across 10M repositories.
+Numerous popular open source projects (such as Ruby on Rails, Homebrew, Bootstrap, Django or JQuery) 
+have chosen \gh as their host and have migrated their code base to it.
+\gh offers a tremendous research potential. 
+For instance, it is a flagship for current open source development, a place for developers to showcase 
+their expertise to peers or potential recruiters, and the platform where social coding features or 
+pull requests emerged.
+However, \gh data is, to date, largely underexplored.
+To facilitate studies of \gh, we have created \ght, a scalable, queriable, offline mirror of the data offered 
+through the \gh REST API.
+In this paper we present a novel feature of \ght designed to offer customisable data dumps on demand.
+The new \ght data-on-demand service offers users the possibility to request via a web form 
+at \url{http://ghtorrent.org/dod.html}
+up-to-date \ght data dumps for any collection of \gh repositories.
+We hope that by offering customisable \ght data dumps we will not only lower the ``barrier for entry'' 
+even further for researchers interested in mining \gh data (thus encourage researchers to intensify their 
+mining efforts), but also enhance the replicability of \gh studies (since a snapshot of the data on which
+the results were obtained can now easily accompany each study).
 
 \end{abstract}
 
@@ -101,6 +120,14 @@ Georgios Gousios\tud, Bogdan Vasilescu\tue, Alexander Serebrenik\tue, Andy Zaidm
 \input{introduction}
 
 \input{architecture}
+
+\input{usage}
+
+\input{relwork}
+
+\input{conclusions}
+
+\input{acknowledgements}
 
 
 %{\small

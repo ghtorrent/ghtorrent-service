@@ -7,14 +7,6 @@ The architecture of the new \ght data-on-demand service consists of two loosely 
 a web server that handles data requests from users and the \ght server that performs the data extraction.
 The two servers communicate via messaging queues.
 
-\begin{figure*}[t]
-\begin{center}
-\includegraphics[width=0.9\textwidth, trim=5 160 5 105, clip=True]{figures/architecture.pdf}
-\caption{Architecture of the \ght data-on-demand service.}
-\label{fig:architecture}
-\end{center}
-\end{figure*}
-
 The interaction between the different subcomponents of the web and \ght servers is illustrated in
 Figure~\ref{fig:architecture} and is detailed next.
 First, users specify their requests for data by filling in the web form at \url{http://ghtorrent.org/dod.html} \circled{1}.
@@ -24,9 +16,7 @@ and records metadata about its owner, payload,\as{What kind of payload do you en
 timestamp and status (completed, in progress) in
 a relational database.
 Then, for each \gh repository part of the request, the listener posts a message to the queue \circled{2}
-containing the request identifier, timestamp and repository.\as{Would it make sense to mention the SQL-like interface as a front-end? For 
-instance, if I'm interested in all projects with at least 10 different committers and at least 100 pull requests, I would use this
-SQL-like interface to find the repositories, and then provide them to the \ght DOD webform... Or does this reduce the novelty of the approach / require too much work?}
+containing the request identifier, timestamp and repository.
 
 On the \ght server side, a dispatcher listens in on the requests queue \circled{3} and interprets the
 messages received as follows.
