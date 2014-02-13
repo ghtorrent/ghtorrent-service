@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'queue_stuff'
+require 'email_stuff'
 require 'sinatra'
 require 'digest/sha1'
 
@@ -10,7 +11,11 @@ set :haml, {:ugly => true}
 require 'sinatra/sequel'
 set :database, 'sqlite://ght-service.db'
 
-migration "init schema" do
+include QueueStuff
+include EmailStuff
+
+# Database automated construction
+migration 'initial schema' do
   database.create_table :users do
     primary_key :id
     String      :name, :null => false
@@ -22,8 +27,6 @@ migration "init schema" do
     primary_key :id
     String      :name, :null => false, :unique => true
     DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-    DateTime    :updated_at
-    String      :last_msg
   end 
 
   database.create_table :requests do
@@ -36,14 +39,22 @@ migration "init schema" do
   end
 
   database.create_table :request_contents do
+    primary_key :id
     foreign_key :request_id, :requests, :null => false
     foreign_key :repo_id, :repos, :null => false
     TrueClass   :done, :null => false, :default => false
     DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
   end
 
+  database.create_table :request_contents_status do
+    primary_key :id
+    foreign_key :request_content_id, :request_contents, :null => false
+    String      :text
+    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
+  end
 end
 
+# What to do if a URL is not found
 not_found do
   status 404
   haml :'404'
@@ -53,17 +64,21 @@ get '/' do
   haml :index
 end
 
+# Basic service logic: Handle a request and render the appropriate templates
+# to answer it.
 post '/requests' do
+  errors = []
   name  = request[:name]
   email = request[:email]
   projects = request[:repos]
 
+  # Parameter check
   if name.nil? or name.strip.empty?
-    return haml :error, :locals => {:error => "User name empty"}
+    return haml :error, :locals => {:error => 'User name empty'}
   end
 
   if email.nil? or email.strip.empty?
-    return haml :error, :locals => {:error => "Email empty"}
+    return haml :error, :locals => {:error => 'Email empty'}
   end
 
   if email.match(/^.+@.+$/).nil?
@@ -71,11 +86,12 @@ post '/requests' do
   end
 
   if projects.nil? or projects.strip.empty?
-    haml :error, :locals => {:error => "No projects specified"}
+    haml :error, :locals => {:error => 'No projects specified'}
   end
 
-  database.loggers << logger
+  #database.loggers << logger
 
+  # Check and register user if necessary
   user = database[:users].where(:email => email).first
   if user.nil?
     database[:users].insert(
@@ -86,17 +102,25 @@ post '/requests' do
   end
   user = database[:users].where(:email => email).first
 
-  unfinished_requests =
+  # Check whether the user has unfinished requests
+  unfinished_request =
       database.from(:request_contents, :requests)\
               .where(:request_contents__request_id => :requests__id)\
               .where(:request_contents__done => false)\
-              .select(:requests__hash).all
+              .select(:requests__hash).first
 
-  unless unfinished_requests.empty?
+  # If there is an unfinished request return an error
+  unless unfinished_request.nil?
     logger.warn("User #{name} has a pending request")
-    return
+    return haml :error, :locals => {
+        :error => "Your request with id <em>#{unfinished_request[:hash]}</em>
+                   has not finished yet. You can only have one request at a time
+                   running. You can see the status of your unfinished request
+                   <a href='/requests/#{unfinished_request[:hash]}'>here</a>."}
   end
 
+  # Done with checks, on to action. Run it in a transaction to fail
+  # atomically in case of error.
   begin
     database.transaction(:rollback => :reraise, :isolation => :committed) do
       # Add the request
@@ -108,19 +132,25 @@ post '/requests' do
 
       req = database[:requests].first(:hash => req_hash)
 
-      # Add the repos to the request
+      # Add the repos to retrieve to the request
       jobs = projects.split(/\r?\n/).map do |x|
         x.strip!
 
         (owner, repository) = x.split(/\//)
 
-        if owner.nil? || !owner.match(/^[a-zA-Z-_.]+$/)
-          logger.warn("Ignoring job: #{x} Wrong user name.")
+        # Consistency checks for reqo and owner names. This is to prevent
+        # SQL injections, hopefuly.
+        if owner.nil? || !owner.match(/^[a-zA-Z\-_.]+$/)
+          msg = "Ignoring project: #{x} Wrong user name."
+          logger.warn(msg)
+          errors << msg
           next
         end
 
-        if repository.nil? || !repository.match(/^[a-zA-Z.-_]+$/)
-          logger.warn("Ignoring job: #{x} Wrong project name.")
+        if repository.nil? || !repository.match(/^[a-zA-Z.\-_]+$/)
+          msg = "Ignoring project: #{x} Wrong project name."
+          logger.warn(msg)
+          errors << msg
           next
         end
 
@@ -131,6 +161,7 @@ post '/requests' do
 
         repo = database[:repos].first(:name => x)
 
+        # Add the request for this repo
         database[:request_contents].insert(
           :repo_id => repo[:id],
           :request_id => req[:id]
@@ -139,6 +170,7 @@ post '/requests' do
         [req[:id], owner, repository].flatten
       end.select{|x| !x.nil?}
 
+      # All requests are in the database, add them to the queue as well.
       jobs.each do |x|
         logger.debug("Adding job: #{x[0]} -> #{x[1]}/#{x[2]}")
         #amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
@@ -146,21 +178,54 @@ post '/requests' do
         #                       :persistent => true,
         #                       :routing_key => JOB_QUEUE})
       end
+      send_req_succeed(email, name, req[:hash], "/requests/#{req[:hash]}")
     end
   rescue Exception => e
     logger.error e.message
     logger.error e.backtrace.join("\n")
-    return haml :error, :locals => {:error => 'An error occured that prevented GHTorrent to fullfil your request. Try again later.'}
+
+    send_email('G.Gousios@tudelft.nl',
+               [e.message, e.backtrace.join("\n")].join("\n\n"))
+    return haml :error, :locals => {
+        :error => 'An error occured that prevented GHTorrent to fullfil your
+                   request. Try again later.'}
   end
 
-  return haml :result, :locals => {:errors => errors}
+  return haml :result, :locals => {:errors => errors, :url => "/requests/#{req[:hash]}"}
 end
 
-get '/requests/:id' do
+# Request status display
+get '/requests/:id' do |id|
+
+  if id.nil? or id.strip.empty? or id.size < 40
+    return haml :error, :locals => {:error => 'Incorrect request id'}
+  end
+
+  id = id[0..39]
+  req = database[:requests].first(:hash => id)
+
+  if req.nil?
+    return haml :error, :locals => {:error => 'Non-existent request'}
+  end
+
+  database[:request_contents].where(:request_id => req[:id])\
+                             .all\
+                             .reduce('<ul>') do |acc, rc|
+    repo = database[:repos].first(:id => rc[:repo_id])
+    status_msgs = database[:request_contents_status].where(:request_content_id => rc[:id]).all
+
+    acc << '<li>' << repo[:name] << '</li>'
+    if status_msgs.size > 0
+      acc << '<ul>'
+      status_msgs.each do |msg|
+        acc << '<li>[' << msg[:created_at] << ']' << msg[:text] << '</li>'
+      end
+      acc << '</ul>'
+    end
+    acc
+  end << '</ul>'
 
 end
-
-
 
 __END__
 
@@ -170,7 +235,7 @@ __END__
   %head
     %meta(charset="utf-8")
 %body
-  .content This is the app
+  .content
   %form{ :action => "/requests", :method => "post"}
     %fieldset
       %label{:for => "name"} Name:
@@ -192,9 +257,16 @@ __END__
   %head
     %meta(charset="utf-8")
 %body
-  .content Thanks for using GHTorrent. We sent you an email with a unique
-           URL. Use it to check the status of your request. We will also send
-           you an email when your request is ready to download.
+  .content Thanks for using GHTorrent. We sent you an email with a unique URL. Use it to check the status of your request. We will also send you an email when your request is ready to download.
+
+  .content You can view your request status here: url
+
+  - if errors.size > 0
+    .content Your request generated the following warnings:
+    %ul
+      - errors.each do |error|
+        %li= error
+
 
 @@status
 !!! 5
@@ -218,3 +290,4 @@ __END__
 @@ 404
   .error.title
     Nothing to see here...
+
