@@ -2,56 +2,18 @@
 
 require 'queue_stuff'
 require 'email_stuff'
+require 'db_stuff'
+
 require 'sinatra'
 require 'digest/sha1'
-
 require 'haml'
-set :haml, {:ugly => true}
-
-require 'sinatra/sequel'
-set :database, 'sqlite://ght-service.db'
 
 include QueueStuff
 include EmailStuff
+include DBStuff
 
-# Database automated construction
-migration 'initial schema' do
-  database.create_table :users do
-    primary_key :id
-    String      :name, :null => false
-    String      :email, :null => false, :unique => true
-    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-  end
+def settings
 
-  database.create_table :repos do
-    primary_key :id
-    String      :name, :null => false, :unique => true
-    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-  end 
-
-  database.create_table :requests do
-    primary_key  :id
-    foreign_key  :user_id, :users, :null => false
-    String       :hash, :size => 40, :unique => true
-    String       :last_msg
-    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-    DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-  end
-
-  database.create_table :request_contents do
-    primary_key :id
-    foreign_key :request_id, :requests, :null => false
-    foreign_key :repo_id, :repos, :null => false
-    TrueClass   :done, :null => false, :default => false
-    DateTime    :updated_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-  end
-
-  database.create_table :request_contents_status do
-    primary_key :id
-    foreign_key :request_content_id, :request_contents, :null => false
-    String      :text
-    DateTime    :created_at, :null => false, :default=>Sequel::CURRENT_TIMESTAMP
-  end
 end
 
 # What to do if a URL is not found
@@ -89,22 +51,20 @@ post '/requests' do
     haml :error, :locals => {:error => 'No projects specified'}
   end
 
-  #database.loggers << logger
-
   # Check and register user if necessary
-  user = database[:users].where(:email => email).first
+  user = db[:users].where(:email => email).first
   if user.nil?
-    database[:users].insert(
+    db[:users].insert(
         :name => name,
         :email => email
     )
     logger.info "Added user #{name} <#{email}>"
   end
-  user = database[:users].where(:email => email).first
+  user = db[:users].where(:email => email).first
 
   # Check whether the user has unfinished requests
   unfinished_request =
-      database.from(:request_contents, :requests)\
+      db.from(:request_contents, :requests)\
               .where(:request_contents__request_id => :requests__id)\
               .where(:request_contents__done => false)\
               .select(:requests__hash).first
@@ -122,15 +82,15 @@ post '/requests' do
   # Done with checks, on to action. Run it in a transaction to fail
   # atomically in case of error.
   begin
-    database.transaction(:rollback => :reraise, :isolation => :committed) do
+    db.transaction(:rollback => :reraise, :isolation => :committed) do
       # Add the request
       req_hash = Digest::SHA1.hexdigest(("#{user}#{projects}").split(//).shuffle.join)
-      database[:requests].insert(
+      db[:requests].insert(
         :user_id  => user[:id],
         :hash => req_hash
       )
 
-      req = database[:requests].first(:hash => req_hash)
+      req = db[:requests].first(:hash => req_hash)
 
       # Add the repos to retrieve to the request
       jobs = projects.split(/\r?\n/).map do |x|
@@ -155,14 +115,14 @@ post '/requests' do
         end
 
         # Make sure that the repo exists
-        if database[:repos].first(:name => x).nil?
-          database[:repos].insert(:name => x)
+        if db[:repos].first(:name => x).nil?
+          db[:repos].insert(:name => x)
         end
 
-        repo = database[:repos].first(:name => x)
+        repo = db[:repos].first(:name => x)
 
         # Add the request for this repo
-        database[:request_contents].insert(
+        db[:request_contents].insert(
           :repo_id => repo[:id],
           :request_id => req[:id]
         )
@@ -170,7 +130,7 @@ post '/requests' do
         [req[:id], owner, repository].flatten
       end.select{|x| !x.nil?}
 
-      # All requests are in the database, add them to the queue as well.
+      # All requests are in the db, add them to the queue as well.
       jobs.each do |x|
         logger.debug("Adding job: #{x[0]} -> #{x[1]}/#{x[2]}")
         #amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
@@ -202,17 +162,17 @@ get '/requests/:id' do |id|
   end
 
   id = id[0..39]
-  req = database[:requests].first(:hash => id)
+  req = db[:requests].first(:hash => id)
 
   if req.nil?
     return haml :error, :locals => {:error => 'Non-existent request'}
   end
 
-  database[:request_contents].where(:request_id => req[:id])\
+  db[:request_contents].where(:request_id => req[:id])\
                              .all\
                              .reduce('<ul>') do |acc, rc|
-    repo = database[:repos].first(:id => rc[:repo_id])
-    status_msgs = database[:request_contents_status].where(:request_content_id => rc[:id]).all
+    repo = db[:repos].first(:id => rc[:repo_id])
+    status_msgs = db[:request_contents_status].where(:request_content_id => rc[:id]).all
 
     acc << '<li>' << repo[:name] << '</li>'
     if status_msgs.size > 0

@@ -169,7 +169,7 @@ class GHTRepoRetriever
 
           if user_entry.nil?
             warn("Cannot find user #{owner}")
-            send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
+            send_job_status(job_id, owner, repo, 'FAILED', "No user #{owner}")
             next
           end
 
