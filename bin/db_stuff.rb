@@ -1,4 +1,5 @@
 require 'sequel'
+require 'ghtorrent'
 
 module DBStuff
 

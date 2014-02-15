@@ -133,10 +133,10 @@ post '/requests' do
       # All requests are in the db, add them to the queue as well.
       jobs.each do |x|
         logger.debug("Adding job: #{x[0]} -> #{x[1]}/#{x[2]}")
-        #amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
-        #                      {:timestamp => Time.now.to_i,
-        #                       :persistent => true,
-        #                       :routing_key => JOB_QUEUE})
+        amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
+                              {:timestamp => Time.now.to_i,
+                               :persistent => true,
+                               :routing_key => JOB_QUEUE})
       end
       send_req_succeed(email, name, req[:hash], "/requests/#{req[:hash]}")
     end

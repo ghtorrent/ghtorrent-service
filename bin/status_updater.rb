@@ -87,3 +87,4 @@ Connect to a queue and
   end
 end
 
+StatusUpdater.run
