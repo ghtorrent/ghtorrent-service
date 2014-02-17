@@ -26,7 +26,7 @@ Connect to a queue and
             :block => true, :ack => true) do |delivery_info, properties, msg|
 
           job_id, owner, repo, status, details = msg.split(/ /)
-          details = details.strip[1..-1]
+          details = msg.split(/ /)[4..-1].join(' ').tr('@',' ').strip
 
           if job_id.nil? or not is_number?(job_id) or owner.nil? \
             or repo.nil? or status.nil? \
@@ -34,40 +34,62 @@ Connect to a queue and
 
             warn "Bad message: [#{msg}] ignoring"
             amqp_channel.acknowledge(delivery_info.delivery_tag, false)
+            next
           end
 
-          req_contents = db.from(:request_contents, :repos)\
-                           .where(:request_contents__repo_id => :repos__id)\
-                           .where(:repos__name => "#{owner}/#{repo}")\
-                           .where(:request_contents__request_id => job_id.to_i)\
-                           .first
+          db.transaction(:rollback => :reraise, :isolation => :committed) do
+            req_contents = db.from(:users, :repos, :requests, :request_contents)\
+                             .where(:users__id => :requests__user_id)\
+                             .where(:request_contents__repo_id => :repos__id)\
+                             .where(:requests__id => :request_contents__request_id)\
+                             .where(:requests__id => job_id.to_i)\
+                             .where(:repos__name => "#{owner}/#{repo}")\
+                             .select(:request_contents__id, :users__email, :repos__name)
+                             .first
 
-          if req_contents.nil?
-            warn "Msg: [#{msg}] pointing to inexisting job. Ignoring"
+            # Ignore updates to inexistent jobs
+            if req_contents.nil?
+              warn "Msg: [#{msg}] pointing to inexisting job. Ignoring"
+              amqp_channel.acknowledge(delivery_info.delivery_tag, false)
+              next
+            end
+
+            # Write the new job status for the job/project
+            db[:request_contents_status].insert(
+                :request_content_id => req_contents[:id],
+                :status => status,
+                :text => details
+            )
+            debug "Set status for #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]} -> #{status} (#{details})"
+
+            # If a terminating msg arrives, update the request status to done
+            if %w(FAILED FINISHED STOPPED).include?(status)
+              rc = db.from(:request_contents, :repos)\
+                     .where(:request_contents__repo_id => :repos__id)\
+                     .where(:repos__name => "#{owner}/#{repo}")\
+                     .where(:request_contents__request_id => job_id.to_i)
+                     .select(:request_contents__id)
+                     .first
+
+              db[:request_contents].where(:id => rc[:id]).update(
+                  :done => true,
+                  :updated_at => Time.now)
+              debug "Set finished flag for job id: #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]}"
+            end
+
+            # If all projects are done for the request, start a backup
+            rcs = db.from(:request_contents)\
+                    .where(:request_contents__request_id => job_id.to_i)\
+                    .where(:request_contents__done => false)\
+                    .all
+
+            if rcs.nil? or rcs.size == 0
+              debug "Starting backup for job #{req_contents[:email]} -> #{job_id}"
+              #???
+            end
+
             amqp_channel.acknowledge(delivery_info.delivery_tag, false)
           end
-
-          db[:request_contents_status].insert(
-              :request_content_id => req_contents[:id],
-              :status => status,
-              :msg => details
-          )
-
-          if %w(FAILED FINISHED STOPPED).include?(status)
-            db.from(:request_contents, :repos)\
-               .where(:request_contents__repo_id => :repos__id)\
-               .where(:repos__name => "#{owner}/#{repo}")\
-               .where(:request_contents__request_id => job_id.to_i)\
-               .update(:done => true)
-          end
-
-          db.from(:request_contents)\
-             .where(:request_contents__request_id => job_id.to_i)\
-             .where(:request_contents__done => false)\
-             .all
-
-
-          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
         end
       rescue Bunny::TCPConnectionFailed => e
         warn "Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
@@ -77,14 +99,23 @@ Connect to a queue and
         sleep(1)
       rescue Interrupt
         stopped = true
+      rescue Exception => e
+        logger.error e.message
+        logger.error e.backtrace.join("\n")
       end
     end
   end
 
-
   def is_number?(obj)
     obj.to_s == obj.to_i.to_s
   end
+
+  def backup(job_id)
+
+
+
+  end
+
 end
 
 StatusUpdater.run

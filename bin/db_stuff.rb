@@ -46,6 +46,7 @@ module DBStuff
         foreign_key :request_id, :requests, :null => false
         foreign_key :repo_id, :repos, :null => false
         TrueClass :done, :null => false, :default => false
+        DateTime :created_at, :null => false, :default => Sequel::CURRENT_TIMESTAMP
         DateTime :updated_at, :null => false, :default => Sequel::CURRENT_TIMESTAMP
       end
 
