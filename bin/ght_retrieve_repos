@@ -134,7 +134,7 @@ class GHTRepoRetriever
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
-          db_name = "job#{job_id}"
+          db_name = "ght_srv_job#{job_id}"
 
           db_url = URI(config(:sql_url))
           db_url.path = "/#{db_name}"
@@ -143,13 +143,14 @@ class GHTRepoRetriever
           case db_url.scheme
             when 'mysql2'
               require 'mysql2'
+              lock_name = "/tmp/ghtorrent-srv-#{db_name}.lock"
+              client = Mysql2::Client.new(:host => db_url.host,
+                                          :username => db_url.user,
+                                          :password => db_url.password)
+              lock = File.open(lock_name, File::RDWR|File::CREAT, 0644)
               begin
-                lock = File.open("/tmp/#{db_name}.lock", File::RDWR|File::CREAT, 0644)
                 lock.flock(File::LOCK_EX)
                 debug "Checking DB #{db_name}" 
-                client = Mysql2::Client.new(:host => db_url.host,
-                                            :username => db_url.user,
-                                            :password => db_url.password)
                 # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
                 # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
                 exists = client.query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '#{db_name}'").to_a
@@ -157,8 +158,8 @@ class GHTRepoRetriever
                   client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
                   ght.get_db # Trigger migration run
                 end
-                client.close
               ensure
+                client.close unless client.nil?
                 lock.flock(File::LOCK_UN)
               end
             else
