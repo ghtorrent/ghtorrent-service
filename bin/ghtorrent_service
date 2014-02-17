@@ -8,12 +8,15 @@ require 'sinatra'
 require 'digest/sha1'
 require 'haml'
 
+include GHTorrent::Settings
+include GHTorrent::Logging
 include QueueStuff
 include EmailStuff
 include DBStuff
 
-def settings
-
+config = YAML::load_file 'config.yaml'
+config.each do |k,v|
+  set(k.intern, v)
 end
 
 # What to do if a URL is not found
@@ -67,6 +70,7 @@ post '/requests' do
       db.from(:request_contents, :requests)\
               .where(:request_contents__request_id => :requests__id)\
               .where(:request_contents__done => false)\
+              .where(:requests__user_id => user[:id])\
               .select(:requests__hash).first
 
   # If there is an unfinished request return an error
@@ -79,7 +83,7 @@ post '/requests' do
                    <a href='/requests/#{unfinished_request[:hash]}'>here</a>."}
   end
 
-  # Done with checks, on to action. Run it in a transaction to fail
+  # Done with sanity checks, on to action. Run it in a transaction to fail
   # atomically in case of error.
   begin
     db.transaction(:rollback => :reraise, :isolation => :committed) do
@@ -92,9 +96,13 @@ post '/requests' do
 
       req = db[:requests].first(:hash => req_hash)
 
+      duplicates = projects.split(/\r?\n/).map{|x| x.strip}.group_by{|y| y}.select{|k,v| v.size > 1}.map{|k,v| [k,v.size]}
+      duplicates.each do |k|
+        errors << "#{k[0]} appears #{k[1]} times in input project list, will only include once"
+      end
+
       # Add the repos to retrieve to the request
-      jobs = projects.split(/\r?\n/).map do |x|
-        x.strip!
+      jobs = projects.split(/\r?\n/).map{|x| x.strip}.uniq.map do |x|
 
         (owner, repository) = x.split(/\//)
 
@@ -136,9 +144,12 @@ post '/requests' do
         amqp_exchange.publish("#{x[0]} #{x[1]} #{x[2]}",
                               {:timestamp => Time.now.to_i,
                                :persistent => true,
-                               :routing_key => JOB_QUEUE})
+                               :routing_key => JOB_QUEUE_ROUTEKEY})
       end
       send_req_succeed(email, name, req[:hash], "/requests/#{req[:hash]}")
+
+      return haml :result, :locals => {:errors => errors,
+                                       :url => "/requests/#{req[:hash]}"}
     end
   rescue Exception => e
     logger.error e.message
@@ -148,10 +159,8 @@ post '/requests' do
                [e.message, e.backtrace.join("\n")].join("\n\n"))
     return haml :error, :locals => {
         :error => 'An error occured that prevented GHTorrent to fullfil your
-                   request. Try again later.'}
+                   request. Please try again later.'}
   end
-
-  return haml :result, :locals => {:errors => errors, :url => "/requests/#{req[:hash]}"}
 end
 
 # Request status display
@@ -168,9 +177,8 @@ get '/requests/:id' do |id|
     return haml :error, :locals => {:error => 'Non-existent request'}
   end
 
-  db[:request_contents].where(:request_id => req[:id])\
-                             .all\
-                             .reduce('<ul>') do |acc, rc|
+  db[:request_contents].where(:request_id => req[:id]).all\
+                       .reduce('<ul>') do |acc, rc|
     repo = db[:repos].first(:id => rc[:repo_id])
     status_msgs = db[:request_contents_status].where(:request_content_id => rc[:id]).all
 
@@ -178,13 +186,21 @@ get '/requests/:id' do |id|
     if status_msgs.size > 0
       acc << '<ul>'
       status_msgs.each do |msg|
-        acc << '<li>[' << msg[:created_at] << ']' << msg[:text] << '</li>'
+        acc << '<li>[' << msg[:created_at].to_s << ']' << msg[:text] << '</li>'
       end
       acc << '</ul>'
     end
     acc
   end << '</ul>'
 
+end
+
+public
+
+# This is to ensure that settings exposed by Sinatra and settings required
+# GHTorrent are compatible to each other.
+def [](key)
+  settings.send(key.to_s)
 end
 
 __END__
