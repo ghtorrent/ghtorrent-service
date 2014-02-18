@@ -10,6 +10,9 @@ module QueueStuff
   RESULT_QUEUE = 'ghtorrent-service-result'
   RESULT_QUEUE_ROUTEKEY = 'ghtorrent.service.result'
 
+  BACKUP_QUEUE = 'ghtorrent-service-backup'
+  BACKUP_QUEUE_ROUTEKEY = 'ghtorrent.service.backup'
+
   def amqp_connection
     if @amqp_con.nil? or @amqp_con.closed?
       @amqp_con = Bunny.new(:host => config(:amqp_host),
