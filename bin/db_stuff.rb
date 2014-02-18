@@ -8,16 +8,16 @@ module DBStuff
   Sequel.extension :migration
 
   def db
-    return @db unless @db.nil?
+    return Thread.current[:db] unless Thread.current[:db].nil?
 
     Sequel.single_threaded = true
-    @db = Sequel.connect(config(:sql_url), :encoding => 'utf8')
+    database = Sequel.connect(config(:sql_url), :encoding => 'utf8')
 
-    if @db.tables.empty?
+    if database.tables.empty?
       logger.warn 'Database empty, creating schema'
 
       logger.info 'Creating table users'
-      @db.create_table :users do
+      database.create_table :users do
         primary_key :id
         String :name, :null => false
         String :email, :null => false, :unique => true
@@ -25,14 +25,14 @@ module DBStuff
       end
 
       logger.info 'Creating table repos'
-      @db.create_table :repos do
+      database.create_table :repos do
         primary_key :id
         String :name, :null => false, :unique => true
         DateTime :created_at, :null => false, :default => Sequel::CURRENT_TIMESTAMP
       end
 
       logger.info 'Creating table requests'
-      @db.create_table :requests do
+      database.create_table :requests do
         primary_key :id
         foreign_key :user_id, :users, :null => false
         String :hash, :size => 40, :unique => true
@@ -41,7 +41,7 @@ module DBStuff
       end
 
       logger.info 'Creating table request_contents'
-      @db.create_table :request_contents do
+      database.create_table :request_contents do
         primary_key :id
         foreign_key :request_id, :requests, :null => false
         foreign_key :repo_id, :repos, :null => false
@@ -51,7 +51,7 @@ module DBStuff
       end
 
       logger.info 'Creating table request_contents_status'
-      @db.create_table :request_contents_status do
+      database.create_table :request_contents_status do
         primary_key :id
         foreign_key :request_content_id, :request_contents, :null => false
         String :text
@@ -60,7 +60,13 @@ module DBStuff
       end
     end
 
-    @db
+    Thread.current[:db] = database
+    Thread.current[:db]
+  end
+
+  def db_close
+    Thread.current[:db].close
+    Thread.current[:db] == NIL
   end
 
 end
