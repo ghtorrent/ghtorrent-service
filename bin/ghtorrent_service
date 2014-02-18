@@ -96,7 +96,8 @@ post '/requests' do
       req_hash = Digest::SHA1.hexdigest(("#{user}#{projects}").split(//).shuffle.join)
       db[:requests].insert(
         :user_id  => user[:id],
-        :hash => req_hash
+        :hash => req_hash,
+        :created_at => Time.now
       )
 
       req = db[:requests].first(:hash => req_hash)
@@ -137,7 +138,8 @@ post '/requests' do
         # Add the request for this repo
         db[:request_contents].insert(
           :repo_id => repo[:id],
-          :request_id => req[:id]
+          :request_id => req[:id],
+          :created_at => Time.now
         )
 
         [req[:id], owner, repository].flatten
