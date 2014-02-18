@@ -2,10 +2,12 @@ require 'ghtorrent'
 require 'bunny'
 require 'uri'
 require 'queue_stuff'
+require 'formats'
 
 
 class GHTRetrieveRepos < GHTorrent::Command
 
+  include Formats
   include GHTorrent::Settings
   include GHTorrent::Logging
 
@@ -134,7 +136,7 @@ class GHTRepoRetriever
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
-          db_name = "ght_srv_job#{job_id}"
+          db_name = Formats::DB_NAME % job_id
 
           db_url = URI(config(:sql_url))
           db_url.path = "/#{db_name}"
