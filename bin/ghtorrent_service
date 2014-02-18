@@ -14,7 +14,12 @@ include QueueStuff
 include EmailStuff
 include DBStuff
 
-config = YAML::load_file 'config.yaml'
+if ARGV.size == 0
+  puts "usage: #{__FILE__} config-file.yaml"
+  exit
+end
+
+config = YAML::load_file ARGV[0] 
 config.each do |k,v|
   set(k.intern, v)
 end
@@ -212,7 +217,7 @@ __END__
     %meta(charset="utf-8")
 %body
   .content
-  %form{ :action => "/requests", :method => "post"}
+  %form{ :action => "/lean/requests", :method => "post"}
     %fieldset
       %label{:for => "name"} Name:
       %input{:type => "text", :name => "name", :required => true}
