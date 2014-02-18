@@ -1,6 +1,7 @@
 require 'db_stuff'
 require 'queue_stuff'
 require 'ghtorrent'
+require 'json'
 
 class StatusUpdater < GHTorrent::Command
 
@@ -32,7 +33,7 @@ Connect to a queue and
             or repo.nil? or status.nil? \
             or not %w(FAILED WORKING FINISHED STOPPED).include?(status)
 
-            warn "Bad message: [#{msg}] ignoring"
+            warn "StatusUpdater: Bad message: [#{msg}] ignoring"
             amqp_channel.acknowledge(delivery_info.delivery_tag, false)
             next
           end
@@ -49,7 +50,7 @@ Connect to a queue and
 
             # Ignore updates to inexistent jobs
             if req_contents.nil?
-              warn "Msg: [#{msg}] pointing to inexisting job. Ignoring"
+              warn "StatusUpdater: Msg: [#{msg}] pointing to inexisting job. Ignoring"
               amqp_channel.acknowledge(delivery_info.delivery_tag, false)
               next
             end
@@ -60,7 +61,7 @@ Connect to a queue and
                 :status => status,
                 :text => details
             )
-            debug "Set status for #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]} -> #{status} (#{details})"
+            debug "StatusUpdater: Set status for #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]} -> #{status} (#{details})"
 
             # If a terminating msg arrives, update the request status to done
             if %w(FAILED FINISHED STOPPED).include?(status)
@@ -74,7 +75,7 @@ Connect to a queue and
               db[:request_contents].where(:id => rc[:id]).update(
                   :done => true,
                   :updated_at => Time.now)
-              debug "Set finished flag for job id: #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]}"
+              debug "StatusUpdater: Set finished flag for job id: #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]}"
             end
 
             # If all projects are done for the request, start a backup
@@ -84,18 +85,40 @@ Connect to a queue and
                     .all
 
             if rcs.nil? or rcs.size == 0
-              debug "Starting backup for job #{req_contents[:email]} -> #{job_id}"
-              #???
+              debug "StatusUpdater: Starting backup for job #{req_contents[:email]} -> #{job_id}"
+              repos = db.from(:request_contents, :repos)\
+                        .where(:repos__id => :request_contents__repo_id)\
+                        .where(:request_contents__request_id => msg.to_i)\
+                        .select(:repos__name)\
+                        .all
+
+              u_details = db.from(:users, :requests)\
+                            .where(:users__id => :requests__user_id)\
+                            .select(:users__name, :users__email, :requests__hash)\
+                            .first
+
+              backup_job         = {}
+              backup_job[:id]    = job_id
+              backup_job[:repos] = repos
+              backup_job[:uname] = u_details[:name]
+              backup_job[:email] = u_details[:email]
+              backup_job[:hash]  = u_details[:hash]
+              10.times do
+                amqp_exchange.publish(backup_job.to_json,
+                                      {:timestamp => Time.now.to_i,
+                                       :persistent => true,
+                                       :routing_key => BACKUP_QUEUE_ROUTEKEY})
+              end
             end
 
             amqp_channel.acknowledge(delivery_info.delivery_tag, false)
           end
         end
       rescue Bunny::TCPConnectionFailed => e
-        warn "Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
+        warn "StatusUpdater: Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
         sleep(1)
       rescue Bunny::NotFound, Bunny::AccessRefused, Bunny::PreconditionFailed => e
-        warn "Channel error: #{e}. Retrying in 1 sec"
+        warn "StatusUpdater: Channel error: #{e}. Retrying in 1 sec"
         sleep(1)
       rescue Interrupt
         stopped = true
@@ -109,13 +132,6 @@ Connect to a queue and
   def is_number?(obj)
     obj.to_s == obj.to_i.to_s
   end
-
-  def backup(job_id)
-
-
-
-  end
-
 end
 
 StatusUpdater.run
