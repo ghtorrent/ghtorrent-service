@@ -1,9 +1,11 @@
 require 'sequel'
 require 'ghtorrent'
+require 'formats'
 
 module DBStuff
 
   include GHTorrent::Settings
+  include GHTorrent::Utils
 
   Sequel.extension :migration
 
@@ -65,7 +67,7 @@ module DBStuff
   end
 
   def db_close
-    Thread.current[:db].close
+    Thread.current[:db].disconnect
     Thread.current[:db] == NIL
   end
 
