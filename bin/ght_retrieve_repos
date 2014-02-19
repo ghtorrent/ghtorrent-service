@@ -120,13 +120,6 @@ class GHTRepoRetriever
 
     job_id, owner, repo = ''
 
-    def send_job_status(job_id, owner, repo, status, details = '')
-      amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
-                            {:timestamp => Time.now.to_i,
-                             :persistent => true,
-                             :routing_key => RESULT_QUEUE_ROUTEKEY})
-    end
-
     stopped = false
     while not stopped
       begin
@@ -186,25 +179,20 @@ class GHTRepoRetriever
 
           debug("Retrieving repo #{owner}/#{repo}")
 
-          def send_message(function, user, repo)
-            ght.send(function, user, repo, refresh = false)
-          end
-
-          functions = %w(ensure_commits ensure_forks ensure_pull_requests
+          retrieval_stages = %w(ensure_commits ensure_forks ensure_pull_requests
             ensure_issues ensure_project_members ensure_watchers ensure_labels)
 
-          functions.each do |x|
-            begin
-              send_job_status(job_id, owner, repo, 'WORKING',
-                              "Retrieving #{x.split(/_/)[1..-1]}")
-              send_message(x, owner, repo)
-            rescue Exception
-              warn("Error processing #{x} for #{owner}/#{repo}")
-              send_job_status(job_id, owner, repo, 'WORKING',
-                              "Failed to retrieve #{x.split(/_/)[1..-1]}")
-              next
-            end
+          retrieval_stages.each do |x|
+            run_retrieval_stage(job_id, owner, repo, x)
           end
+
+          # Repository owner bound data retrieval
+          run_retrieval_stage(job_id, owner, repo, 'ensure_user_followers')
+
+          if user_entry[:type] == 'ORG'
+            run_retrieval_stage(job_id, owner, repo, 'ensure_org')
+          end
+
           db_close
           send_job_status(job_id, owner, repo, 'FINISHED')
         end
@@ -228,6 +216,25 @@ class GHTRepoRetriever
     end
 
     amqp_close
+  end
+
+  def send_job_status(job_id, owner, repo, status, details = '')
+    amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
+                          {:timestamp => Time.now.to_i,
+                           :persistent => true,
+                           :routing_key => RESULT_QUEUE_ROUTEKEY})
+  end
+
+  def run_retrieval_stage(job_id, owner, repo, function)
+    begin
+      send_job_status(job_id, owner, repo, 'WORKING',
+                      "Retrieving #{function.split(/_/)[1..-1].join(' ')}")
+      ght.send(function, owner, repo, refresh = false)
+    rescue Exception
+      warn("Error processing #{function} for #{owner}/#{repo}")
+      send_job_status(job_id, owner, repo, 'WORKING',
+                      "Failed to retrieve #{function.split(/_/)[1..-1].join(' ')}")
+    end
   end
 
 end

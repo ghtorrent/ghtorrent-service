@@ -1,5 +1,6 @@
 require 'db_stuff'
 require 'queue_stuff'
+require 'email_stuff'
 require 'ghtorrent'
 require 'mongo'
 
@@ -10,6 +11,7 @@ class Backuper < GHTorrent::Command
   include GHTorrent::Logging
   include QueueStuff
   include DBStuff
+  include EmailStuff
 
   def go
     stopped = false
@@ -37,22 +39,42 @@ class Backuper < GHTorrent::Command
           db_url.path = "/#{db_name}"
           @settings = merge_config_values(@settings, {:sql_url => db_url.to_s})
 
-          backup_path = File.join('backups', job['id'])
+          backup_path = File.join(@settings['dump']['tmp'], job['id'])
           FileUtils.mkdir_p(backup_path)
-          repos = job['repos'].map{|k,v| v}
 
-          #users(backup_path)
-          #commits(backup_path)
-          #commit_comments(backup_path)
-          #repos(backup_path)
+          begin
+            ## individual collections
+            #%w(users commits commit_comments repos followers org_members).each do |method|
+            #  debug "Backuper: Dumping #{method} for #{job['email']} -> #{job['id']}"
+            #  send method, backup_path
+            #end
+            #
+            ## repo-bound collections
+            #%w(repo_labels repo_collaborators watchers forks pull_requests
+            #   pull_request_comments issues issue_events issue_comments).each do |collection|
+            #  debug "Backuper: Dumping #{collection.to_s} for #{job['email']} ->  #{job['id']}"
+            #  repo_bound(backup_path, collection)
+            #end
 
-          %w(repo_labels repo_collaborators watchers forks pull_requests \
-             pull_request_comments issues issue_events issue_comments).each do |collection|
-            repo_bound(backup_path, collection)
+            debug "Backuper: Backing up MySQL for #{job['email']} -> #{job['id']}"
+            mysql(backup_path, db_name)
+
+            dumpname = "ght-#{job['hash']}.tar.gz"
+            cmd = "cd #{@settings['dump']['tmp']} && tar zcvf #{dumpname} #{job['id']}"
+            system(cmd)
+            FileUtils.mv dumpname, @settings['dump']['dir']
+
+            url = @settings['dump']['url_prefix'] + '/' + dumpname
+            send_dump_succeed(job[:email], job[:name], url)
+          rescue Exception => e
+            send_dump_failed(job[:email], job[:name])
+            send_email('G.Gousios@tudelft.nl',
+                       [e.message, e.backtrace.join("\n")].join("\n\n"))
+            raise e
+          ensure
+            db_close
+            amqp_channel.acknowledge(delivery_info.delivery_tag, false)
           end
-
-          db_close
-          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
         end
       rescue Bunny::TCPConnectionFailed => e
         warn "Backuper: Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
@@ -123,18 +145,54 @@ class Backuper < GHTorrent::Command
     out.close
   end
 
+  def followers(dir)
+    out = File.open(File.join(dir, 'followers.bson'), 'w+')
+    db[:followers, :users].where(:followers__user_id => :users__id)\
+                          .select(:users__login)\
+                          .each do |x|
+      r = mongo['followers'].find({'login' => x[:login]}).to_a
+      unless r.empty?
+        out.write BSON::serialize(r[0])
+      end
+    end
+    out.close
+  end
+
+  def org_members(dir)
+    out = File.open(File.join(dir, 'org_members.bson'), 'w+')
+
+    db[:users].where(:users__type => 'ORG').select(:users__login).each do |x|
+      r = mongo['org_members'].find({'org' => x[:login]}).to_a
+      unless r.empty?
+        out.write BSON::serialize(r[0])
+      end
+    end
+    out.close
+  end
+
+
   def repo_bound(backup_path, collection)
-    mongo_command = "mongodump -h #{@settings['mongo']['host']} --port #{@settings['mongo']['port']} -d #{@settings['mongo']['db']} -c %s -q \"%s\"  -o - >> %s"
-    output = File.join(backup_path, "#{collection.to_s}.json" )
+    out = File.open(File.join(backup_path, "#{collection.to_s}.json"), 'w+')
 
     db[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
                          .each do |x|
-      debug "Dumping #{collection.to_s} for #{x[:login]}/#{x[:name]}"
-      query = "{'owner': '#{x[:login]}', 'repo': '#{x[:name]}'}"
-      cmd = sprintf(mongo_command, collection.to_s, query, output)
-      system(cmd)
+
+      r = mongo[collection].find({'owner' => "#{x[:login]}", 'repo' => "#{x[:name]}"}).to_a
+      unless r.empty?
+        r.each do |item|
+          out.write BSON::serialize(item)
+        end
+      end
     end
+    out.close
+  end
+
+  def mysql(backup_path, db)
+    file = File.join(backup_path, 'mysql.sql')
+    url = URI(config(:sql_url))
+    cmd = "mysqldump -u #{url.user} --password=#{url.password} -h #{url.host} #{db} > #{file}"
+    system(cmd)
   end
 
 end

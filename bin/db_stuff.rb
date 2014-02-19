@@ -67,7 +67,7 @@ module DBStuff
   end
 
   def db_close
-    Thread.current[:db].disconnect
+    Thread.current[:db].disconnect unless Thread.current[:db].nil?
     Thread.current[:db] == NIL
   end
 

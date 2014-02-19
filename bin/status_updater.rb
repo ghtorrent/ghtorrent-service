@@ -103,12 +103,10 @@ Connect to a queue and
               backup_job[:uname] = u_details[:name]
               backup_job[:email] = u_details[:email]
               backup_job[:hash]  = u_details[:hash]
-              10.times do
-                amqp_exchange.publish(backup_job.to_json,
-                                      {:timestamp => Time.now.to_i,
-                                       :persistent => true,
-                                       :routing_key => BACKUP_QUEUE_ROUTEKEY})
-              end
+              amqp_exchange.publish(backup_job.to_json,
+                                    {:timestamp => Time.now.to_i,
+                                     :persistent => true,
+                                     :routing_key => BACKUP_QUEUE_ROUTEKEY})
             end
 
             amqp_channel.acknowledge(delivery_info.delivery_tag, false)
