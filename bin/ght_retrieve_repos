@@ -169,11 +169,11 @@ class GHTRepoRetriever
           while user_entry.nil? and i < 10 do
             i += 1
             warn("Trying to get user #{owner}, attempt #{i}")
-            user_entry = begin
-                           ght.transaction { ght.ensure_user(owner, false, false)}
-                         rescue Exception => e
-                           warn e.message
-                         end
+            begin
+              user_entry = ght.transaction { ght.ensure_user(owner, false, false)}
+            rescue Exception => e
+              warn e.message
+            end
           end
 
           if user_entry.nil?
@@ -221,7 +221,9 @@ class GHTRepoRetriever
         warn "Channel error: #{e}. Retrying in 1 sec"
         sleep(1)
       rescue Interrupt => _
-        send_job_status(job_id, owner, repo, 'STOPPED', 'Retrieval stopped on sysadmin request')
+        unless job_id.nil?
+          send_job_status(job_id, owner, repo, 'STOPPED', 'Retrieval stopped on sysadmin request')
+        end
         stopped = true
       rescue Exception => e
         send_email('G.Gousios@tudelft.nl',
