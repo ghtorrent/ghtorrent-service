@@ -140,7 +140,7 @@ post '/requests' do
       req = db[:requests].first(:hash => req_hash)
 
       # Add the repos to retrieve to the request
-      jobs = projects.split(/\r?\n/).map{|x| x.strip}.uniq.map do |x|
+      jobs = projects.map do |x|
 
         (owner, repository) = x.split(/\//)
 
@@ -209,7 +209,7 @@ get '/requests/:id' do |id|
     if status_msgs.size > 0
       acc << '<ul>'
       status_msgs.each do |msg|
-        acc << '<li>[' << msg[:created_at].to_s << ']' << msg[:text] << '</li>'
+        acc << '<li>[' << msg[:created_at].to_s << '] ' << msg[:status] << ' -- ' << msg[:text] << '</li>'
       end
       acc << '</ul>'
     end
