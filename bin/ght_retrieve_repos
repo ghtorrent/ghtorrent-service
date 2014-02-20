@@ -145,13 +145,15 @@ class GHTRepoRetriever
               lock = File.open(lock_name, File::RDWR|File::CREAT, 0644)
               begin
                 lock.flock(File::LOCK_EX)
-                debug "Checking DB #{db_name}" 
-                # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'localhost';
-                # grant all PRIVILEGES on `job%`.* to 'ghtorrent'@'%';
+                debug "Process #{Process.pid} (parent: #{Process.ppid}): Obtained file lock"
+                debug "Process #{Process.pid} (parent: #{Process.ppid}): Checking DB #{db_name}"
                 exists = client.query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '#{db_name}'").to_a
                 if exists.empty?
+                  debug "Process #{Process.pid} (parent: #{Process.ppid}): Creating database #{db_name}"
                   client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
                   ght.get_db # Trigger migration run
+                else
+                  debug "Process #{Process.pid} (parent: #{Process.ppid}): Database #{db_name} exists"
                 end
               ensure
                 client.close unless client.nil?
