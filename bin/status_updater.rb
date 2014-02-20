@@ -94,6 +94,7 @@ Connect to a queue and
 
               u_details = db.from(:users, :requests)\
                             .where(:users__id => :requests__user_id)\
+                            .where(:requests__id => msg.to_i)\
                             .select(:users__name, :users__email, :requests__hash)\
                             .first
 
