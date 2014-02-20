@@ -187,13 +187,12 @@ class GHTRepoRetriever
           end
 
           # Repository owner bound data retrieval
-          run_retrieval_stage(job_id, owner, repo, 'ensure_user_followers')
+          run_retrieval_stage(job_id, owner, repo, 'ensure_user_followers', onlyuser = true)
 
           if user_entry[:type] == 'ORG'
-            run_retrieval_stage(job_id, owner, repo, 'ensure_org')
+            run_retrieval_stage(job_id, owner, repo, 'ensure_org', onlyuser = true)
           end
 
-          db_close
           send_job_status(job_id, owner, repo, 'FINISHED')
         end
 
@@ -225,11 +224,15 @@ class GHTRepoRetriever
                            :routing_key => RESULT_QUEUE_ROUTEKEY})
   end
 
-  def run_retrieval_stage(job_id, owner, repo, function)
+  def run_retrieval_stage(job_id, owner, repo, function, only_user = false)
     begin
       send_job_status(job_id, owner, repo, 'WORKING',
                       "Retrieving #{function.split(/_/)[1..-1].join(' ')}")
-      ght.send(function, owner, repo, refresh = false)
+      if only_user
+        ght.send(function, owner)
+      else
+        ght.send(function, owner, repo, refresh = false)
+      end
     rescue Exception
       warn("Error processing #{function} for #{owner}/#{repo}")
       send_job_status(job_id, owner, repo, 'WORKING',
