@@ -5,7 +5,7 @@ require 'queue_stuff'
 require 'formats'
 
 
-class GHTRetrieveRepos < GHTorrent::Command
+class GHTServiceRetrieveRepos < GHTorrent::Command
 
   include Formats
   include GHTorrent::Settings
@@ -126,6 +126,7 @@ class GHTRepoRetriever
         consumer_queue(JOB_QUEUE, JOB_QUEUE_ROUTEKEY).subscribe(
             :block => true, :ack => true) do |delivery_info, properties, msg|
 
+          @ght.dispose unless @ght.nil?
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
@@ -156,6 +157,7 @@ class GHTRepoRetriever
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Database #{db_name} exists"
                 end
               ensure
+                @ght.dispose unless @ght.nil?
                 client.close unless client.nil?
                 lock.flock(File::LOCK_UN)
               end
@@ -237,6 +239,7 @@ class GHTRepoRetriever
     end
 
     amqp_close
+    @ght.dispose unless @ght.nil?
   end
 
   def send_job_status(job_id, owner, repo, status, details = '')
@@ -264,4 +267,4 @@ class GHTRepoRetriever
 
 end
 
-GHTRetrieveRepos.run(ARGV)
+GHTServiceRetrieveRepos.run(ARGV)
