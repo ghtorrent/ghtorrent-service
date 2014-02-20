@@ -206,8 +206,9 @@ class GHTRepoRetriever
             run_retrieval_stage(job_id, owner, repo, 'ensure_org', onlyuser = true)
           end
 
+          debug "Finish job_id #{job_id} -> #{owner}/#{repo}"
           send_job_status(job_id, owner, repo, 'FINISHED')
-          info "Finish job_id #{job_id} -> #{owner}/#{repo}"
+          debug "Sent FINISHED message for  #{job_id} -> #{owner}/#{repo}"
         end
 
       rescue Bunny::TCPConnectionFailed => e
@@ -224,6 +225,7 @@ class GHTRepoRetriever
         stopped = true
       rescue Exception => e
         send_email('G.Gousios@tudelft.nl',
+                   "job_id: #{job_id}, owner: #{owner}, repo: #{repo}\n" +
                    [e.message, e.backtrace.join("\n")].join("\n\n"))
         send_job_status(job_id, owner, repo, 'FAILED', e.message)
         raise e
