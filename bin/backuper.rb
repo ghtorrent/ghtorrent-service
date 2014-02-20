@@ -43,18 +43,20 @@ class Backuper < GHTorrent::Command
           FileUtils.mkdir_p(backup_path)
 
           begin
-            ## individual collections
-            #%w(users commits commit_comments repos followers org_members).each do |method|
-            #  debug "Backuper: Dumping #{method} for #{job['email']} -> #{job['id']}"
-            #  send method, backup_path
-            #end
-            #
-            ## repo-bound collections
-            #%w(repo_labels repo_collaborators watchers forks pull_requests
-            #   pull_request_comments issues issue_events issue_comments).each do |collection|
-            #  debug "Backuper: Dumping #{collection.to_s} for #{job['email']} ->  #{job['id']}"
-            #  repo_bound(backup_path, collection)
-            #end
+            # individual collections
+            %w(users commits commit_comments
+               repos followers org_members).each do |method|
+              debug "Backuper: Dumping #{method} for #{job['email']} -> #{job['id']}"
+              send method, backup_path
+            end
+
+            # repo-bound collections
+            %w(repo_labels repo_collaborators watchers forks
+              pull_requests pull_request_comments issues
+               issue_events issue_comments).each do |collection|
+              debug "Backuper: Dumping #{collection.to_s} for #{job['email']} ->  #{job['id']}"
+              repo_bound(backup_path, collection)
+            end
 
             debug "Backuper: Backing up MySQL for #{job['email']} -> #{job['id']}"
             mysql(backup_path, db_name)
@@ -62,12 +64,13 @@ class Backuper < GHTorrent::Command
             dumpname = "ght-#{job['hash']}.tar.gz"
             cmd = "cd #{@settings['dump']['tmp']} && tar zcvf #{dumpname} #{job['id']}"
             system(cmd)
-            FileUtils.mv dumpname, @settings['dump']['dir']
+
+            FileUtils.mv(File.join(@settings['dump']['tmp'], dumpname), @settings['dump']['dir'])
 
             url = @settings['dump']['url_prefix'] + '/' + dumpname
-            send_dump_succeed(job[:email], job[:name], url)
+            send_dump_succeed(job['email'], job['uname'], url)
           rescue Exception => e
-            send_dump_failed(job[:email], job[:name])
+            send_dump_failed(job[:email], job[:uname])
             send_email('G.Gousios@tudelft.nl',
                        [e.message, e.backtrace.join("\n")].join("\n\n"))
             raise e
