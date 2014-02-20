@@ -161,27 +161,26 @@ class GHTRepoRetriever
               raise Exception("Unsupported DB type #{db_url.scheme}")
           end
 
+          # On rare occasions, 2 instances might try to add the same user
+          # at the same time, which might lead to transaction conflicts
+          # Give the script one more opportunity before bailing out
+          user_entry = nil
+          i = 0
+          while user_entry.nil? and i < 10 do
+            i += 1
+            warn("Trying to get user #{owner}, attempt #{i}")
+            user_entry = begin
+                           ght.transaction { ght.ensure_user(owner, false, false)}
+                         rescue Exception => e
+                           warn e.message
+                         end
+          end
 
-            # On rare occasions, 2 scripts might try to add the same user
-            # at the same time, which might lead to transaction conflicts
-            # Give the script one more opportunity before bailing out
-            user_entry = nil
-            i = 0
-            while user_entry.nil? and i < 10 do
-              i += 1
-              warn("Trying to get user #{owner}, attempt #{i}")
-              user_entry = begin
-                             ght.transaction { ght.ensure_user(owner, false, false)}
-                           rescue Exception => e
-                             warn e.message
-                           end
-            end
-
-            if user_entry.nil?
-              warn("Cannot find user #{owner}")
-              send_job_status(job_id, owner, repo, 'FAILED', "No user #{owner}")
-              next
-            end
+          if user_entry.nil?
+            warn("Cannot find user #{owner}")
+            send_job_status(job_id, owner, repo, 'FAILED', "No user #{owner}")
+            next
+          end
 
           repo_entry = ght.transaction { ght.ensure_repo(owner, repo) }
 
