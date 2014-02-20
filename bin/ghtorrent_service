@@ -85,7 +85,44 @@ post '/requests' do
         :error => "Your request with id <em>#{unfinished_request[:hash]}</em>
                    has not finished yet. You can only have one request at a time
                    running. You can see the status of your unfinished request
-                   <a href='/requests/#{unfinished_request[:hash]}'>here</a>."}
+                   <a href='/lean/requests/#{unfinished_request[:hash]}'>here</a>."}
+  end
+
+
+  duplicates = projects.split(/\r?\n/).map{|x| x.strip}.group_by{|y| y}.select{|k,v| v.size > 1}.map{|k,v| [k,v.size]}
+  duplicates.each do |k|
+    errors << "#{k[0]} appears #{k[1]} times in input project list, will only include once"
+  end
+
+
+  projects = projects.split(/\r?\n/).map{|x| x.strip}.uniq.map do |x|
+
+    (owner, repository) = x.split(/\//)
+
+    # Consistency checks for reqo and owner names. This is to prevent
+    # SQL injections, hopefuly.
+    if owner.nil? || !owner.match(/^[a-zA-Z\-_.]+$/)
+      msg = "Ignoring project: #{x} Wrong user name."
+      logger.warn(msg)
+      errors << msg
+      next
+    end
+
+    if repository.nil? || !repository.match(/^[a-zA-Z.\-_]+$/)
+      msg = "Ignoring project: #{x} Wrong project name."
+      logger.warn(msg)
+      errors << msg
+      next
+    end
+    x
+  end
+
+  projects = projects.select{|x| !x.nil?}
+
+  if projects.empty?
+    logger.warn("No valid repos specified")
+    return haml :error, :locals => {
+        :error => "No valid repos could be found in the request"}
   end
 
   # Done with sanity checks, on to action. Run it in a transaction to fail
@@ -102,31 +139,10 @@ post '/requests' do
 
       req = db[:requests].first(:hash => req_hash)
 
-      duplicates = projects.split(/\r?\n/).map{|x| x.strip}.group_by{|y| y}.select{|k,v| v.size > 1}.map{|k,v| [k,v.size]}
-      duplicates.each do |k|
-        errors << "#{k[0]} appears #{k[1]} times in input project list, will only include once"
-      end
-
       # Add the repos to retrieve to the request
       jobs = projects.split(/\r?\n/).map{|x| x.strip}.uniq.map do |x|
 
         (owner, repository) = x.split(/\//)
-
-        # Consistency checks for reqo and owner names. This is to prevent
-        # SQL injections, hopefuly.
-        if owner.nil? || !owner.match(/^[a-zA-Z\-_.]+$/)
-          msg = "Ignoring project: #{x} Wrong user name."
-          logger.warn(msg)
-          errors << msg
-          next
-        end
-
-        if repository.nil? || !repository.match(/^[a-zA-Z.\-_]+$/)
-          msg = "Ignoring project: #{x} Wrong project name."
-          logger.warn(msg)
-          errors << msg
-          next
-        end
 
         # Make sure that the repo exists
         if db[:repos].first(:name => x).nil?
