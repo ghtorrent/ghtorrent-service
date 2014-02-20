@@ -175,7 +175,7 @@ class Backuper < GHTorrent::Command
 
 
   def repo_bound(backup_path, collection)
-    out = File.open(File.join(backup_path, "#{collection.to_s}.json"), 'w+')
+    out = File.open(File.join(backup_path, "#{collection.to_s}.bson"), 'w+')
 
     db[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
