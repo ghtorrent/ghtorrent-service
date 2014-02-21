@@ -122,7 +122,6 @@ class GHTRepoRetriever
         consumer_queue(JOB_QUEUE, JOB_QUEUE_ROUTEKEY).subscribe(
             :block => true, :ack => true) do |delivery_info, properties, msg|
 
-          ght = TransactedGhtorrent.new(@config)
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
@@ -132,6 +131,8 @@ class GHTRepoRetriever
           db_url = URI(config(:sql_url))
           db_url.path = "/#{db_name}"
           @config = merge_config_values(@config, {:sql_url => db_url.to_s})
+
+          ght = TransactedGhtorrent.new(@config)
 
           debug "Applicable database URL: #{db_url}"
           case db_url.scheme
