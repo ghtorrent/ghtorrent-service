@@ -34,6 +34,9 @@ get '/' do
   haml :index
 end
 
+get 'requests' do
+end
+
 # Basic service logic: Handle a request and render the appropriate templates
 # to answer it.
 post '/requests' do
@@ -81,6 +84,7 @@ post '/requests' do
   # If there is an unfinished request return an error
   unless unfinished_request.nil?
     logger.warn("User #{name} has a pending request")
+    db_close
     return haml :error, :locals => {
         :error => "Your request with id <em>#{unfinished_request[:hash]}</em>
                    has not finished yet. You can only have one request at a time
@@ -121,6 +125,7 @@ post '/requests' do
 
   if projects.empty?
     logger.warn("No valid repos specified")
+    db_close
     return haml :error, :locals => {
         :error => "No valid repos could be found in the request"}
   end
@@ -183,6 +188,8 @@ post '/requests' do
     return haml :error, :locals => {
         :error => 'An error occured that prevented GHTorrent to fullfil your
                    request. Please try again later.'}
+  ensure
+    db_close
   end
 end
 
@@ -200,7 +207,7 @@ get '/requests/:id' do |id|
     return haml :error, :locals => {:error => 'Non-existent request'}
   end
 
-  db[:request_contents].where(:request_id => req[:id]).all\
+  result = db[:request_contents].where(:request_id => req[:id]).all\
                        .reduce('<ul>') do |acc, rc|
     repo = db[:repos].first(:id => rc[:repo_id])
     status_msgs = db[:request_contents_status].where(:request_content_id => rc[:id]).all
@@ -215,7 +222,9 @@ get '/requests/:id' do |id|
     end
     acc
   end << '</ul>'
-
+  
+  db_close
+  result
 end
 
 public

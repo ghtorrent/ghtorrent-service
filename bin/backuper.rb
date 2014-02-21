@@ -20,6 +20,8 @@ class Backuper < GHTorrent::Command
       begin
         consumer_queue(BACKUP_QUEUE, BACKUP_QUEUE_ROUTEKEY).subscribe(
             :block => true, :ack => true) do |delivery_info, properties, msg|
+          
+          amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job = begin
             JSON.parse(msg)
@@ -29,7 +31,6 @@ class Backuper < GHTorrent::Command
 
           if job.nil?
             warn "Backuper: Invalid message #{msg}"
-            amqp_channel.acknowledge(delivery_info.delivery_tag, false)
             next
           end
 
@@ -76,7 +77,6 @@ class Backuper < GHTorrent::Command
             raise e
           ensure
             db_close
-            amqp_channel.acknowledge(delivery_info.delivery_tag, false)
           end
         end
       rescue Bunny::TCPConnectionFailed => e

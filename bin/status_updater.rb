@@ -124,6 +124,8 @@ Connect to a queue and
       rescue Exception => e
         logger.error e.message
         logger.error e.backtrace.join("\n")
+      ensure
+        db_close
       end
     end
   end
