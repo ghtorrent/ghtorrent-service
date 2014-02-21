@@ -105,14 +105,14 @@ post '/requests' do
 
     # Consistency checks for reqo and owner names. This is to prevent
     # SQL injections, hopefuly.
-    if owner.nil? || !owner.match(/^[a-zA-Z\-_.]+$/)
+    if owner.nil? || !owner.match(/^[0-9a-zA-Z\-_.]+$/)
       msg = "Ignoring project: #{x} Wrong user name."
       logger.warn(msg)
       errors << msg
       next
     end
 
-    if repository.nil? || !repository.match(/^[a-zA-Z.\-_]+$/)
+    if repository.nil? || !repository.match(/^[0-9a-zA-Z.\-_]+$/)
       msg = "Ignoring project: #{x} Wrong project name."
       logger.warn(msg)
       errors << msg
