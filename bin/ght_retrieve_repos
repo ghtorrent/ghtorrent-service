@@ -47,7 +47,7 @@ Values in the config.yaml file set with the -c command are overriden.
 
     configs = File.open(ARGV[0]).readlines.map do |line|
       next if line =~ /^#/
-      ip,name,passwd,instances = line.strip.split(/ /)
+      ip, name, passwd, instances = line.strip.split(/ /)
       (1..instances.to_i).map do |i|
         newcfg = self.settings.clone
         newcfg = override_config(newcfg, :attach_ip, ip)
@@ -57,7 +57,7 @@ Values in the config.yaml file set with the -c command are overriden.
         newcfg = override_config(newcfg, :mirror_commit_pages_new_repo, 1000)
         newcfg
       end
-    end.flatten.select{|x| !x.nil?}
+    end.flatten.select { |x| !x.nil? }
 
     children = configs.map do |config|
       pid = Process::fork
@@ -107,11 +107,6 @@ class GHTRepoRetriever
     @logger ||= Logger.new(STDOUT)
   end
 
-  def ght
-    @ght ||= TransactedGhtorrent.new(@config)
-    @ght
-  end
-
   def settings
     @config
   end
@@ -126,7 +121,7 @@ class GHTRepoRetriever
         consumer_queue(JOB_QUEUE, JOB_QUEUE_ROUTEKEY).subscribe(
             :block => true, :ack => true) do |delivery_info, properties, msg|
 
-          @ght.dispose unless @ght.nil?
+          ght = TransactedGhtorrent.new(@config)
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
@@ -153,11 +148,11 @@ class GHTRepoRetriever
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Creating database #{db_name}"
                   client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
                   ght.get_db # Trigger migration run
+                  debug "Process #{Process.pid} (parent: #{Process.ppid}): Finished running migrations #{db_name}"
                 else
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Database #{db_name} exists"
                 end
               ensure
-                @ght.dispose unless @ght.nil?
                 client.close unless client.nil?
                 lock.flock(File::LOCK_UN)
               end
@@ -174,7 +169,7 @@ class GHTRepoRetriever
             i += 1
             warn("Trying to get user #{owner}, attempt #{i}")
             begin
-              user_entry = ght.transaction { ght.ensure_user(owner, false, false)}
+              user_entry = ght.transaction { ght.ensure_user(owner, false, false) }
             rescue Exception => e
               warn e.message
             end
@@ -183,6 +178,7 @@ class GHTRepoRetriever
           if user_entry.nil?
             warn("Cannot find user #{owner}")
             send_job_status(job_id, owner, repo, 'FAILED', "No user #{owner}")
+            ght.dispose
             next
           end
 
@@ -191,6 +187,7 @@ class GHTRepoRetriever
           if repo_entry.nil?
             warn("Cannot find repository #{owner}/#{repo}")
             send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
+            ght.dispose
             next
           end
 
@@ -200,21 +197,21 @@ class GHTRepoRetriever
             ensure_issues ensure_project_members ensure_watchers ensure_labels)
 
           retrieval_stages.each do |x|
-            run_retrieval_stage(job_id, owner, repo, x)
+            run_retrieval_stage(ght, job_id, owner, repo, x)
           end
 
           # Repository owner bound data retrieval
-          run_retrieval_stage(job_id, owner, repo, 'ensure_user_followers', onlyuser = true)
+          run_retrieval_stage(ght, job_id, owner, repo, 'ensure_user_followers', onlyuser = true)
 
           if user_entry[:type] == 'ORG'
-            run_retrieval_stage(job_id, owner, repo, 'ensure_org', onlyuser = true)
+            run_retrieval_stage(ght, job_id, owner, repo, 'ensure_org', onlyuser = true)
           end
 
           debug "Finish job_id #{job_id} -> #{owner}/#{repo}"
           send_job_status(job_id, owner, repo, 'FINISHED')
           debug "Sent FINISHED message for  #{job_id} -> #{owner}/#{repo}"
+          ght.dispose
         end
-
       rescue Bunny::TCPConnectionFailed => e
         warn "Connection to #{config(:amqp_host)} failed. Retrying in 1 sec"
         sleep(1)
@@ -232,14 +229,13 @@ class GHTRepoRetriever
       rescue Exception => e
         send_email('G.Gousios@tudelft.nl',
                    "job_id: #{job_id}, owner: #{owner}, repo: #{repo}\n" +
-                   [e.message, e.backtrace.join("\n")].join("\n\n"))
+                       [e.message, e.backtrace.join("\n")].join("\n\n"))
         send_job_status(job_id, owner, repo, 'FAILED', e.message)
         raise e
       end
     end
 
     amqp_close
-    @ght.dispose unless @ght.nil?
   end
 
   def send_job_status(job_id, owner, repo, status, details = '')
@@ -249,7 +245,7 @@ class GHTRepoRetriever
                            :routing_key => RESULT_QUEUE_ROUTEKEY})
   end
 
-  def run_retrieval_stage(job_id, owner, repo, function, only_user = false)
+  def run_retrieval_stage(ght, job_id, owner, repo, function, only_user = false)
     begin
       send_job_status(job_id, owner, repo, 'WORKING',
                       "Retrieving #{function.split(/_/)[1..-1].join(' ')}")
