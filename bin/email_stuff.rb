@@ -58,7 +58,7 @@ The GHTorrent team
   end
 
   def send_dump_failed(email, name)
-    text = sprintf(DUMP_READY, Time.now, name)
+    text = sprintf(DUMP_FAILED, Time.now, name)
     send_email(email, text)
   end
 
