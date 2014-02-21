@@ -63,7 +63,7 @@ Values in the config.yaml file set with the -c command are overriden.
       pid = Process::fork
 
       if pid.nil?
-        retriever = GHTRepoRetriever.new(config, options[:queue])
+        retriever = GHTRepoRetriever.new(config, options[:queue], logger)
 
         Signal.trap('TERM') {
           retriever.stop
@@ -98,13 +98,14 @@ class GHTRepoRetriever
 
   include QueueStuff
 
-  def initialize(config, queue)
+  def initialize(config, queue, logger)
     @config = config
     @queue = queue
+    @logger = logger
   end
 
   def logger
-    @logger ||= Logger.new(STDOUT)
+    @logger
   end
 
   def settings
@@ -125,36 +126,40 @@ class GHTRepoRetriever
           amqp_channel.acknowledge(delivery_info.delivery_tag, false)
 
           job_id, owner, repo = msg.split(/ /)
-          db_name = Formats::DB_NAME % job_id
+          debug "Starting job #{job_id} -> #{owner}/#{repo}"
 
+          db_name = Formats::DB_NAME % job_id
           db_url = URI(config(:sql_url))
           db_url.path = "/#{db_name}"
           @config = merge_config_values(@config, {:sql_url => db_url.to_s})
 
+          debug "Applicable database URL: #{db_url}"
           case db_url.scheme
             when 'mysql2'
               require 'mysql2'
-              lock_name = "/tmp/ghtorrent-srv-#{db_name}.lock"
-              client = Mysql2::Client.new(:host => db_url.host,
-                                          :username => db_url.user,
-                                          :password => db_url.password)
+              lock_name = "ghtorrent-srv-#{db_name}.lock"
               lock = File.open(lock_name, File::RDWR|File::CREAT, 0644)
               begin
+                debug "Waiting on #{lock_name}"
                 lock.flock(File::LOCK_EX)
                 debug "Process #{Process.pid} (parent: #{Process.ppid}): Obtained file lock"
                 debug "Process #{Process.pid} (parent: #{Process.ppid}): Checking DB #{db_name}"
+                client = Mysql2::Client.new(:host => db_url.host,
+                                          :username => db_url.user,
+                                          :password => db_url.password)
                 exists = client.query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '#{db_name}'").to_a
                 if exists.empty?
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Creating database #{db_name}"
-                  client.query("create database if not exists #{db_name} CHARACTER SET = 'utf8'")
-                  ght.get_db # Trigger migration run
+                  client.query("create database #{db_name} CHARACTER SET = 'utf8'")
+                  client.close unless client.nil?
+                  ght.get_db
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Finished running migrations #{db_name}"
                 else
                   debug "Process #{Process.pid} (parent: #{Process.ppid}): Database #{db_name} exists"
                 end
               ensure
-                client.close unless client.nil?
-                lock.flock(File::LOCK_UN)
+                lock.flock(File::LOCK_UN) unless lock.nil?
+                lock.close unless lock.nil?
               end
             else
               raise Exception("Unsupported DB type #{db_url.scheme}")
@@ -264,3 +269,5 @@ class GHTRepoRetriever
 end
 
 GHTServiceRetrieveRepos.run(ARGV)
+
+# vim: ft=ruby:
