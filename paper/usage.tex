@@ -4,6 +4,43 @@
 \label{sec:usage}
 Essentially any study of a restricted collection of \gh repositories can be carried out using the lean \ght offering the advantages of flexibility in selecting the repositories and reproducibility of the results.
 
+We envision, for example, use cases in which researchers interested in mining \gh data start off by using the in-browser
+interface to select a number of \gh repositories matching their research goals.
+Then, lean \ght can be used to retrieve data for those repositories.
+
+To use the web form at \url{http://ghtorrent.org/lean}, repositories should be input one per line in the dedicated space.
+The input format for a repository is \emph{<owner>/<repository>} (for instance, \emph{gousiosg/github-mirror}, or \emph{rails/rails}).
+
+Once a job has been submitted, the user is sent an email with a tracking URL, where information about the status of retrieving
+each component (table; commits, forks, pull requests, project members, etc.) of each requested repository is displayed.
+Refreshing the tracking page will update the status information.
+For example, the following is an excerpt from the tracking page of a request to lean \ght:
+
+[timestamp] WORKING -- Retrieving commits
+
+[timestamp] WORKING -- Retrieving forks
+
+[timestamp] WORKING -- Retrieving pull requests
+
+[timestamp] WORKING -- Retrieving issues
+
+[timestamp] WORKING -- Retrieving project members
+
+[timestamp] WORKING -- Retrieving watchers
+
+[timestamp] WORKING -- Retrieving labels
+
+[timestamp] WORKING -- Retrieving user followers
+
+[timestamp] WORKING -- Retrieving org
+
+[timestamp] FINISHED --
+\vspace{0.2cm}
+
+Furthermore, the Ruby scripts provided together with \ght (e.g., scripts to update all the data related to a given repository
+or a given user; see the \ght \gh repository \url{https://github.com/gousiosg/github-mirror}) allow users of lean \ght, 
+once they restore locally the database dumps they requested, to update their local copies independently.
+
 
 \as{Would it make sense to mention the SQL-like interface as a front-end? For
 instance, if I'm interested in all projects with at least 10 different committers and at least 100 pull requests, I would use this

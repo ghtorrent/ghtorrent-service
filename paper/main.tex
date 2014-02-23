@@ -8,6 +8,7 @@
 \usepackage{xspace}
 \usepackage{url}
 \usepackage{cite}
+\usepackage{balance}
 
 \setlist{nolistsep}
 \setlength{\textfloatsep}{10pt}
@@ -31,7 +32,7 @@
 \usepackage{ifthen}
 \usepackage{amssymb}
 \newboolean{showcomments}
-\setboolean{showcomments}{true} % toggle to show or hide comments
+\setboolean{showcomments}{false} % toggle to show or hide comments
 \ifthenelse{\boolean{showcomments}}
   {\newcommand{\nb}[2]{
     \fcolorbox{gray}{yellow}{\bfseries\sffamily\scriptsize#1}
@@ -118,7 +119,7 @@ We hope that by offering customisable \ght data dumps we will not only lower the
 even further for researchers interested in mining \gh data (thus encourage researchers to intensify their
 mining efforts), but also enhance the replicability of \gh studies (since a snapshot of the data on which
 the results were obtained can now easily accompany each study).
-The service is available at \url{http://ghtorrent.org/lean.html}.
+The service is available at \url{http://ghtorrent.org/lean}.
 \end{abstract}
 
 
@@ -134,6 +135,7 @@ The service is available at \url{http://ghtorrent.org/lean.html}.
 
 \input{acknowledgements}
 
+\balance
 
 %{\small
 \bibliographystyle{abbrv}

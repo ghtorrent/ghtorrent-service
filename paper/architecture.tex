@@ -9,7 +9,7 @@ The two servers communicate via messaging queues.
 
 The interaction between the different subcomponents of the web and \ght servers is illustrated in
 Figure~\ref{fig:architecture} and is detailed next.
-First, users specify their requests for data by filling in the web form at \url{http://ghtorrent.org/lean.html} \circled{1}.
+First, users specify their requests for data by filling in the web form at \url{http://ghtorrent.org/lean} \circled{1}.
 A request listener validates each request (e.g., it must contain an email address, it must not ask for
 more than 100 repositories)\bv{check number}\as{What happens if the limit is exceeded?}
 and records metadata about its owner, payload,\as{What kind of payload do you envision and how does the request listener record it?} 
@@ -24,7 +24,7 @@ First, if the message refers to a request for which no previous messages (asking
 have been received, a new shared relational database is created to collect metadata for the repositories part
 of this request \circled{4}.
 This database has the same schema as the original \ght MySQL database~\cite{gousios2013ghtorent},
-also described at \url{http://ghtorrent.org/relational.html}.
+reproduced for completeness in Figure~\ref{fig:schema}.
 Then, for each message (repository) referring to the same job, a retrieval worker is instantiated having
 as parameters the repository being requested, details for connecting to the job database, and the
 timestamp of the request \circled{5}.
@@ -54,4 +54,12 @@ are available for download at a given URL.
 \as{This all sounds like a good-weather scenario. Should one describe what happens if something is going wrong? For instance,
 how do we ensure consistency of the data or what happens if the mail notification bounces? Do we want some kind of
 protection of \ght against malicious bots/users that might try to overload \ght servers?}
+
+\begin{figure*}[t]
+\begin{center}
+\includegraphics[width=0.9\textwidth]{figures/schema.pdf}
+\caption{MySQL database schema~\cite{gousios2013ghtorent}.}
+\label{fig:schema}
+\end{center}
+\end{figure*}
 
