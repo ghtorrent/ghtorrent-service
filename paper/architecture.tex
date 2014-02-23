@@ -12,7 +12,7 @@ Figure~\ref{fig:architecture} and is detailed next.
 First, users specify their requests for data by filling in the web form at \url{http://ghtorrent.org/lean} \circled{1}.
 A request listener validates each request (e.g., it must contain an email address, it must not ask for
 more than 100 repositories)\bv{check number}\as{What happens if the limit is exceeded?}
-and records metadata about its owner, payload,\as{What kind of payload do you envision and how does the request listener record it?} 
+and records metadata about its owner, payload,\as{What kind of payload do you envision and how does the request listener record it?}
 timestamp and status (completed, in progress) in
 a relational database.
 Then, for each \gh repository part of the request, the listener posts a message to the queue \circled{2}
@@ -23,7 +23,7 @@ messages received as follows.
 First, if the message refers to a request for which no previous messages (asking for different repositories)
 have been received, a new shared relational database is created to collect metadata for the repositories part
 of this request \circled{4}.
-This database has the same schema as the original \ght MySQL database~\cite{gousios2013ghtorent},
+This database has the same schema as the original \ght MySQL database~\cite{gousios2012ghtorent},
 reproduced for completeness in Figure~\ref{fig:schema}.
 Then, for each message (repository) referring to the same job, a retrieval worker is instantiated having
 as parameters the repository being requested, details for connecting to the job database, and the
@@ -33,8 +33,8 @@ Retrieval workers run in parallel and make extensive use of caching.
 If the main \ght database already contains data for this repository and this data is not too old
 (i.e., the difference between the request timestamp and the timestamp of the last update to this data is at
 most three months\bv{check number}), then the shared job database is populated with metadata for this
-repository extracted from the main \ght database \circled{6}.\as{Would it be a better strategy to allow the 
-user to enforce the database repopulation overwriting the cache? in the same way as with the cached webpages?} 
+repository extracted from the main \ght database \circled{6}.\as{Would it be a better strategy to allow the
+user to enforce the database repopulation overwriting the cache? in the same way as with the cached webpages?}
 Otherwise, both the main \ght database and the job database \circled{7} are updated with data freshly extracted
 from the \gh API.
 This data collection process, again designed as a decentralized process, with decentralization mediated
