@@ -44,7 +44,18 @@ Dear %s,
 unfortunately, your GHTorrent request could not be completed. We are
 investigating the reason and you will be hearing from us soon.
 
+Reason: %s
+
 The GHTorrent team
+  EMAIL
+
+
+  DUMP_EXCEPTION = <<-EMAIL
+  Subject: Dump error 
+  Date: %s
+
+  %s
+  
   EMAIL
 
   def send_req_succeed(email, name, id, url)
@@ -57,15 +68,20 @@ The GHTorrent team
     send_email(email, text)
   end
 
-  def send_dump_failed(email, name)
-    text = sprintf(DUMP_FAILED, Time.now, name)
+  def send_dump_failed(email, name, reason)
+    text = sprintf(DUMP_FAILED, Time.now, name, reason)
     send_email(email, text)
+  end
+
+  def send_dump_exception(exception)
+    text = sprintf(DUMP_EXCEPTION, Time.now, exception)
+    send_email('G.Gousios@tudelft.nl', text)
   end
 
   def send_email(to, text)
     Net::SMTP.start('localhost', 25, 'ghtorrent.org') do |smtp|
       begin
-        smtp.send_message(text, 'GHTorrent Service<noreply@ghtorrent.org>', to)
+        smtp.send_message(text, 'noreply@ghtorrent.org', to)
       rescue Exception => e
         logger.error "Failed to send email to #{to}: #{e.message}"
         logger.error e.backtrace.join("\n")

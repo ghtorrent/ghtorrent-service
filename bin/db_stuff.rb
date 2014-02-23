@@ -6,6 +6,7 @@ module DBStuff
 
   include GHTorrent::Settings
   include GHTorrent::Utils
+  include GHTorrent::Logging
 
   Sequel.extension :migration
 

@@ -40,7 +40,7 @@ class Backuper < GHTorrent::Command
           db_url.path = "/#{db_name}"
           @settings = merge_config_values(@settings, {:sql_url => db_url.to_s})
 
-          backup_path = File.join(@settings['dump']['tmp'], job['id'])
+          backup_path = File.join(@settings['dump']['tmp'], job['id'].to_s)
           FileUtils.mkdir_p(backup_path)
 
           begin
@@ -70,10 +70,10 @@ class Backuper < GHTorrent::Command
 
             url = @settings['dump']['url_prefix'] + '/' + dumpname
             send_dump_succeed(job['email'], job['uname'], url)
+            debug "Backuper: Backing done for #{job['email']} -> #{job['id']}"
           rescue Exception => e
-            send_dump_failed(job[:email], job[:uname])
-            send_email('G.Gousios@tudelft.nl',
-                       [e.message, e.backtrace.join("\n")].join("\n\n"))
+            send_dump_failed(job[:email], job[:uname], e.message)
+            send_dump_exception([e.message, e.backtrace.join("\n")].join("\n\n"))
             raise e
           ensure
             db_close
@@ -105,9 +105,11 @@ class Backuper < GHTorrent::Command
   def users(dir)
     out = File.open(File.join(dir, 'users.bson'), 'w+')
     db[:users].select(:login).each do |x|
-      r = mongo['users'].find({'login' => x[:login]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['users'].find({'login' => x[:login]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -116,9 +118,11 @@ class Backuper < GHTorrent::Command
   def commits(dir)
     out = File.open(File.join(dir, 'commits.bson'), 'w+')
     db[:commits].select(:sha).each do |x|
-      r = mongo['commits'].find({'sha' => x[:sha]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['commits'].find({'sha' => x[:sha]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -127,9 +131,11 @@ class Backuper < GHTorrent::Command
   def commit_comments(dir)
     out = File.open(File.join(dir, 'commit_comments.bson'), 'w+')
     db[:commit_comments].select(:comment_id).each do |x|
-      r = mongo['commit_comments'].find({'id' => x[:comment_id]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['commit_comments'].find({'id' => x[:comment_id]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -140,9 +146,11 @@ class Backuper < GHTorrent::Command
     db[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
                          .each do |x|
-      r = mongo['repos'].find({'name' => x[:name], 'owner.login' => x[:login]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['repos'].find({'name' => x[:name], 'owner.login' => x[:login]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -153,9 +161,11 @@ class Backuper < GHTorrent::Command
     db[:followers, :users].where(:followers__user_id => :users__id)\
                           .select(:users__login)\
                           .each do |x|
-      r = mongo['followers'].find({'login' => x[:login]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['followers'].find({'login' => x[:login]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -165,9 +175,11 @@ class Backuper < GHTorrent::Command
     out = File.open(File.join(dir, 'org_members.bson'), 'w+')
 
     db[:users].where(:users__type => 'ORG').select(:users__login).each do |x|
-      r = mongo['org_members'].find({'org' => x[:login]}).to_a
-      unless r.empty?
-        out.write BSON::serialize(r[0])
+      safe_retrieve do
+        r = mongo['org_members'].find({'org' => x[:login]}).to_a
+        unless r.empty?
+          out.write BSON::serialize(r[0])
+        end
       end
     end
     out.close
@@ -179,12 +191,14 @@ class Backuper < GHTorrent::Command
 
     db[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
-                         .each do |x|
+                         .each do |x| 
 
-      r = mongo[collection].find({'owner' => "#{x[:login]}", 'repo' => "#{x[:name]}"}).to_a
-      unless r.empty?
-        r.each do |item|
-          out.write BSON::serialize(item)
+      safe_retrieve do
+        r = mongo[collection].find({'owner' => "#{x[:login]}", 'repo' => "#{x[:name]}"}).to_a
+        unless r.empty?
+          r.each do |item|
+            out.write BSON::serialize(item)
+          end
         end
       end
     end
@@ -196,6 +210,15 @@ class Backuper < GHTorrent::Command
     url = URI(config(:sql_url))
     cmd = "mysqldump -u #{url.user} --password=#{url.password} -h #{url.host} #{db} > #{file}"
     system(cmd)
+  end
+
+  def safe_retrieve(&block)
+    begin
+      yield block
+    rescue Exception => e
+      logger.error e.message
+      logger.error e.backtrace.join("\n")
+    end
   end
 
 end
