@@ -8,11 +8,16 @@ require 'yaml'
 
 include QueueStuff
 include DBStuff
+include GHTorrent::Logging
 
 job_id = ARGV[0].to_i
 
 def settings
   YAML.load_file(ARGV[1])
+end
+
+def logger
+  Logger.new STDOUT
 end
 
 repos = db.from(:request_contents, :repos)\
@@ -35,7 +40,7 @@ backup_job[:email] = u_details[:email]
 backup_job[:hash]  = u_details[:hash]
 
 puts backup_job.to_json
-#amqp_exchange.publish(backup_job.to_json,
-#                      {:timestamp => Time.now.to_i,
-#                       :persistent => true,
-#                       :routing_key => BACKUP_QUEUE_ROUTEKEY})
+amqp_exchange.publish(backup_job.to_json,
+                      {:timestamp => Time.now.to_i,
+                       :persistent => true,
+                       :routing_key => BACKUP_QUEUE_ROUTEKEY})
