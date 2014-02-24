@@ -4,8 +4,6 @@
 #
 # Distributed under the 2-close BSD license, see top level directory.
 
-
-
 require 'db_stuff'
 require 'queue_stuff'
 require 'email_stuff'
