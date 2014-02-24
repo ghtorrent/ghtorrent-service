@@ -1,3 +1,7 @@
+# (c) 2014 -- onwards Georgios Gousios <gousiosg@gmail.com>
+#
+# Distributed under the 2-close BSD license, see top level directory.
+
 require 'ghtorrent'
 
 module QueueStuff
