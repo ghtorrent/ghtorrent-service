@@ -2,6 +2,7 @@
 
 \section{Using the service}
 \label{sec:usage}
+
 Essentially any study of a restricted collection of \gh repositories can be carried out using the lean \ght offering the advantages of flexibility in selecting the repositories and reproducibility of the results.
 
 We envision, for example, use cases in which researchers interested in mining \gh data start off by using the in-browser
@@ -14,31 +15,43 @@ The input format for a repository is \emph{<owner>/<repository>} (for instance, 
 Once a job has been submitted, the user is sent an email with a tracking URL, where information about the status of retrieving
 each component (table; commits, forks, pull requests, project members, etc.) of each requested repository is displayed.
 Refreshing the tracking page will update the status information.
-For example, the following is an excerpt from the tracking page of a request to lean \ght:
+%For example, the following is an excerpt from the tracking page of a request to lean \ght:
+%
+%{\small
+%[timestamp] WORKING -- Retrieving commits
+%
+%[timestamp] WORKING -- Retrieving forks
+%
+%[timestamp] WORKING -- Retrieving pull requests
+%
+%[timestamp] WORKING -- Retrieving issues
+%
+%[timestamp] WORKING -- Retrieving project members
+%
+%[timestamp] WORKING -- Retrieving watchers
+%
+%[timestamp] WORKING -- Retrieving labels
+%
+%[timestamp] WORKING -- Retrieving user followers
+%
+%[timestamp] WORKING -- Retrieving org
+%
+%[timestamp] FINISHED --
+%}
+%\vspace{0.2cm}
 
-[timestamp] WORKING -- Retrieving commits
+Once the job finishes, an archive containing the MySQL and MongoDB data dumps is offered for download.
+The MySQL dump contains metadata for the requested repositories, having the schema described in Figure~\ref{fig:schema}.
+The MongoDB dump contains all the data extracted by \ght from the \gh API (e.g., in addition to metadata about users,
+organisations, repositories, commits, issues and pull requests already available in MySQL, it contains the actual 
+changes---diffs---to the repository for each commit).
+%
+To restore the database dumps locally, the standard procedure of importing \texttt{sql} archives or \texttt{mongo} collections
+(i.e., using the \texttt{mongorestore} script provided with MongoDB) applies.
 
-[timestamp] WORKING -- Retrieving forks
-
-[timestamp] WORKING -- Retrieving pull requests
-
-[timestamp] WORKING -- Retrieving issues
-
-[timestamp] WORKING -- Retrieving project members
-
-[timestamp] WORKING -- Retrieving watchers
-
-[timestamp] WORKING -- Retrieving labels
-
-[timestamp] WORKING -- Retrieving user followers
-
-[timestamp] WORKING -- Retrieving org
-
-[timestamp] FINISHED --
-\vspace{0.2cm}
 
 Furthermore, the Ruby scripts provided together with \ght (e.g., scripts to update all the data related to a given repository
-or a given user; see the \ght \gh repository \url{https://github.com/gousiosg/github-mirror}) allow users of lean \ght, 
+or a given user; see the \ght \gh repository \url{https://github.com/gousiosg/github-mirror}) allow users of \newline lean \ght, 
 once they restore locally the database dumps they requested, to update their local copies independently.
 
 
