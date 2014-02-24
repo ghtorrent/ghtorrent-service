@@ -8,7 +8,7 @@ a web server that handles data requests from users and the \ght server that perf
 The two servers communicate via messaging queues.
 
 The interaction between the different subcomponents of the web and \ght servers is illustrated in
-Figure~\ref{fig:architecture} and is detailed next.
+Figure~\ref{fig:architecture}.
 First, users specify their requests for data by filling in the web form at \url{http://ghtorrent.org/lean} \circled{1}.
 A request listener validates each request (e.g., it must contain an email address, it must not ask for
 more than 1000 repositories)\bv{check number}\as{What happens if the limit is exceeded?}
@@ -30,12 +30,12 @@ as parameters the repository being requested, details for connecting to the job 
 timestamp of the request \circled{5}.
 
 Retrieval workers run in parallel and make extensive use of caching.
-If the main \ght database already contains data for this repository,
+If the main \ght MongoDB database already contains data for this repository,
 %and this data is not too old,
 %(i.e., the difference between the request timestamp and the timestamp of the last update to this data is at
 %most three months\bv{check number}), 
 then the shared job database is populated with metadata for this
-repository extracted from the main \ght database \circled{6}.\as{Would it be a better strategy to allow the
+repository extracted from the main \ght MongoDB database \circled{6}.\as{Would it be a better strategy to allow the
 user to enforce the database repopulation overwriting the cache? in the same way as with the cached webpages?}
 Otherwise, both the main \ght database and the job database \circled{7} are updated with data freshly extracted
 from the \gh API.
@@ -59,7 +59,7 @@ protection of \ght against malicious bots/users that might try to overload \ght 
 
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[width=0.85\textwidth]{figures/schema.pdf}
+\includegraphics[width=0.80\textwidth]{figures/schema.pdf}
 \caption{MySQL database schema~\cite{gousios2013ghtorent}.}
 \label{fig:schema}
 \end{center}
