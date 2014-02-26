@@ -14,14 +14,27 @@ module DBStuff
 
   Sequel.extension :migration
 
-  def db
-    return Thread.current[:db] unless Thread.current[:db].nil?
+  def db(check_if_connected = false)
+
+    unless @db.nil?
+      if check_if_connected
+        begin
+          @db["select now()"].first
+          return @db
+        rescue
+          logger.warn "DB: connection to #{config(:sql_url)} is down"
+        end
+      else
+        return @db
+      end
+    end
 
     Sequel.single_threaded = true
     database = Sequel.connect(config(:sql_url), :encoding => 'utf8')
+    logger.debug "DB: Connected to #{config(:sql_url)}"
 
     if database.tables.empty?
-      logger.warn 'Database empty, creating schema'
+      logger.warn 'DB: Database empty, creating schema'
 
       logger.info 'Creating table users'
       database.create_table :users do
@@ -67,13 +80,14 @@ module DBStuff
       end
     end
 
-    Thread.current[:db] = database
-    Thread.current[:db]
+    @db = database
+    @db
   end
 
   def db_close
-    Thread.current[:db].disconnect unless Thread.current[:db].nil?
-    Thread.current[:db] == NIL
+    logger.debug "Closing connection to #{config(:sql_url)}"
+    @db.disconnect unless @db.nil?
+    @db = NIL
   end
 
 end

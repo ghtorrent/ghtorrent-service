@@ -49,6 +49,7 @@ class Backuper < GHTorrent::Command
           backup_path = File.join(@settings['dump']['tmp'], job['id'].to_s)
           FileUtils.mkdir_p(backup_path)
 
+          debug "Backuper: starting backup for #{job['email']} -> #{job['id']}"
           begin
             # individual collections
             %w(users commits commit_comments
@@ -110,7 +111,7 @@ class Backuper < GHTorrent::Command
 
   def users(dir)
     out = File.open(File.join(dir, 'users.bson'), 'w+')
-    db[:users].select(:login).each do |x|
+    db(true)[:users].select(:login).each do |x|
       safe_retrieve do
         r = mongo['users'].find({'login' => x[:login]}).to_a
         unless r.empty?
@@ -123,7 +124,7 @@ class Backuper < GHTorrent::Command
 
   def commits(dir)
     out = File.open(File.join(dir, 'commits.bson'), 'w+')
-    db[:commits].select(:sha).each do |x|
+    db(true)[:commits].select(:sha).each do |x|
       safe_retrieve do
         r = mongo['commits'].find({'sha' => x[:sha]}).to_a
         unless r.empty?
@@ -136,7 +137,7 @@ class Backuper < GHTorrent::Command
 
   def commit_comments(dir)
     out = File.open(File.join(dir, 'commit_comments.bson'), 'w+')
-    db[:commit_comments].select(:comment_id).each do |x|
+    db(true)[:commit_comments].select(:comment_id).each do |x|
       safe_retrieve do
         r = mongo['commit_comments'].find({'id' => x[:comment_id]}).to_a
         unless r.empty?
@@ -149,7 +150,7 @@ class Backuper < GHTorrent::Command
 
   def repos(dir)
     out = File.open(File.join(dir, 'repos.bson'), 'w+')
-    db[:projects, :users].where(:projects__owner_id => :users__id)\
+    db(true)[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
                          .each do |x|
       safe_retrieve do
@@ -164,7 +165,7 @@ class Backuper < GHTorrent::Command
 
   def followers(dir)
     out = File.open(File.join(dir, 'followers.bson'), 'w+')
-    db[:followers, :users].where(:followers__user_id => :users__id)\
+    db(true)[:followers, :users].where(:followers__user_id => :users__id)\
                           .select(:users__login)\
                           .each do |x|
       safe_retrieve do
@@ -180,7 +181,7 @@ class Backuper < GHTorrent::Command
   def org_members(dir)
     out = File.open(File.join(dir, 'org_members.bson'), 'w+')
 
-    db[:users].where(:users__type => 'ORG').select(:users__login).each do |x|
+    db(true)[:users].where(:users__type => 'ORG').select(:users__login).each do |x|
       safe_retrieve do
         r = mongo['org_members'].find({'org' => x[:login]}).to_a
         unless r.empty?
@@ -195,7 +196,7 @@ class Backuper < GHTorrent::Command
   def repo_bound(backup_path, collection)
     out = File.open(File.join(backup_path, "#{collection.to_s}.bson"), 'w+')
 
-    db[:projects, :users].where(:projects__owner_id => :users__id)\
+    db(true)[:projects, :users].where(:projects__owner_id => :users__id)\
                          .select(:users__login, :projects__name)\
                          .each do |x| 
 
