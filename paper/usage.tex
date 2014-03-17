@@ -3,8 +3,9 @@
 \section{Using the service}
 \label{sec:usage}
 
-Essentially any study of a restricted collection of \gh repositories can be carried out using the lean \ght offering the advantages of flexibility in selecting the repositories and reproducibility of the results.
-
+Essentially any study of a restricted collection of \gh repositories can be carried out using the lean \ght, 
+with advantages such as flexibility in selecting the repositories or reproducibility of the results.
+%
 We envision, for example, use cases in which researchers interested in mining \gh data start off by using the in-browser
 interface to select a number of \gh repositories matching their research goals.
 Then, lean \ght can be used to retrieve data for those repositories.
@@ -12,7 +13,7 @@ Then, lean \ght can be used to retrieve data for those repositories.
 To use the web form at \url{http://ghtorrent.org/lean}, repositories should be input one per line in the dedicated space.
 The input format for a repository is \emph{<owner>/<repository>} (for instance, \emph{gousiosg/github-mirror}, or \emph{rails/rails}). To select the repositories
 that are interesting for analysis, researchers can use the existing \ght
-MySQL web interface for filtering projects based on specific criteria (e.g.
+MySQL web interface for filtering projects based on specific criteria (e.g.,
 all Ruby on Rails forks, projects in Java that have more than 100 pull requests,
 projects that received a commit throught a pull request in 2014 etc).
 
@@ -53,9 +54,10 @@ changes---diffs---to the repository for each commit).
 To restore the database dumps locally, the standard procedure of importing \texttt{sql} archives or \texttt{mongo} collections
 (i.e., using the \texttt{mongorestore} script provided with MongoDB) applies.
 
-Furthermore, the Ruby scripts provided together with \ght (e.g., scripts to update all the data related to a given repository
-or a given user; see the \ght \gh repository \url{https://github.com/gousiosg/github-mirror}) allow users of \newline lean \ght, 
-once they restore locally the database dumps they requested, to update their local copies independently.
+Furthermore, the Ruby scripts provided together with \ght (see the \gh repository 
+\url{https://github.com/gousiosg/github-mirror} for, e.g., scripts to update all the data related to a given repository) 
+allow users of lean \ght, once they restore locally the database dumps they requested, 
+to update their local copies independently.
 
 
 \as{Would it make sense to mention the SQL-like interface as a front-end? For
