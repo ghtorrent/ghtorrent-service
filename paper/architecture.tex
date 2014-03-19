@@ -29,7 +29,7 @@ Then, for each message (repository) referring to the same job, a retrieval worke
 as parameters the repository being requested, details for connecting to the job database, and the
 timestamp of the request \circled{5}.
 
-Retrieval workers run in parallel and make extensive use of caching.
+Retrieval workers run in parallel and make use of caching.
 If the main \ght MongoDB database already contains data for this repository,
 %and this data is not too old,
 %(i.e., the difference between the request timestamp and the timestamp of the last update to this data is at
@@ -44,11 +44,11 @@ using a similar \emph{worker queue model}, was described previously~\cite{gousio
 Once a retrieval worker finishes, it posts a message to the responses queue \circled{8} signalling
 the completion of its task.
 
-On the web server side, a response listener handles incoming response messages (one for each repository
+On the web server side, a response listener handles incoming messages (one for each repository
 in each request) \circled{9} and updates the status of the job in the requests database.
-When ``task complete'' messages have been received for all repositories part of a request, data dumps
+When ``task complete'' messages have been received for all repositories in a request, data dumps
 are being created from both the job database (MySQL, having the \ght schema~\cite{gousios2013ghtorent})
-and the main \ght database (MongoDB, only collections---groupings of MongoDB documents---relevant for this
+and the main \ght database (MongoDB, only collections--groupings of MongoDB documents--relevant for this
 request are extracted).
 %
 Finally, the request owner is notified via email that her job has completed and the requested data dumps

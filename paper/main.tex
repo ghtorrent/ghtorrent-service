@@ -1,4 +1,8 @@
 \documentclass{sig-alternate}
+
+\pdfpagewidth=8.5in 
+\pdfpageheight=11in 
+
 \usepackage{breqn}
 \usepackage{pbox}
 \usepackage{enumitem, array}
@@ -78,12 +82,12 @@
 \begin{document}
 
 % --- Author Metadata here ---
-%\conferenceinfo{The 11th Working Conference on Mining Software Repositories}{'14 Hyderabad, India}
-%\CopyrightYear{2007} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
-%\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
+\conferenceinfo{MSR}{'14, May 31 -- June 1, 2014, Hyderabad, India}
+\CopyrightYear{2014}
+\crdata{978-1-4503-2863-0/14/05}
 % --- End of Author Metadata ---
 
-\title{Lean GHTorrent: GitHub data on demand}
+\title{Lean GHTorrent: GitHub Data on Demand}
 
 
 \numberofauthors{1}
@@ -99,13 +103,12 @@ Georgios Gousios\tud, Bogdan Vasilescu\tue, Alexander Serebrenik\tue, Andy Zaidm
 }
 
 
-
 \maketitle
 \begin{abstract}
 
 In recent years, \gh has become the largest code host in the world, with more than 5M developers
 collaborating across 10M repositories.
-Numerous popular open source projects (such as Ruby on Rails, Homebrew, Bootstrap, Django or JQuery)
+Numerous popular open source projects (such as Ruby on Rails, Homebrew, Bootstrap, Django or jQuery)
 have chosen \gh as their host and have migrated their code base to it.
 \gh offers a tremendous research potential.
 For instance, it is a flagship for current open source development, a place for developers to showcase
@@ -125,6 +128,12 @@ the results were obtained can now easily accompany each study).
 \end{abstract}
 
 
+\keywords{GitHub, dataset, data on demand}
+\category{H.3.5}{Online Information Services}{Data sharing}. 
+\terms{Experimentation}
+
+
+
 \input{introduction}
 
 \input{architecture}
@@ -141,9 +150,9 @@ the results were obtained can now easily accompany each study).
 
 \balance
 
-%{\small
+{\small
 \bibliographystyle{abbrv}
 \bibliography{ref}
-%}
+}
 
 \end{document}
