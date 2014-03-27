@@ -86,10 +86,10 @@ Connect to a queue and
 
             # If all projects are done for the request, start a backup,
             # unless a backup has already been created for the request.
-            rcs = db.from(:request, :request_contents)\
-                    .where(:request_contents__request_id => :request__id)\
+            rcs = db.from(:requests, :request_contents)\
+                    .where(:request_contents__request_id => :requests__id)\
                     .where(:request_contents__request_id => job_id.to_i)\
-                    .where(:request__backup_done => false)\
+                    .where(:requests__backup_done => false)\
                     .where(:request_contents__done => false)\
                     .all
 

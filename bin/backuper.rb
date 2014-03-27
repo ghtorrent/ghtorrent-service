@@ -40,6 +40,14 @@ class Backuper < GHTorrent::Command
             next
           end
 
+          if db[:requests].where(:hash => job['hash']).select(:backup_done).first[:backup_done] == true
+            warn "Backuper: Backup done for #{job['email']} -> #{job['id']}, skipping"
+            next
+          end
+          db_close
+
+          ght_service_sql_url = config(:sql_url)
+
           db_name = Formats::DB_NAME % job['id']
 
           db_url = URI(config(:sql_url))
@@ -77,13 +85,17 @@ class Backuper < GHTorrent::Command
 
             url = @settings['dump']['url_prefix'] + '/' + dumpname
 
+            # Send email to notify the user on successful backup creation
             send_dump_succeed(job['email'], job['uname'], url)
 
-            # Update db field to indicate that backup was done for this job
-            db[:requests].where(:hash => job['hash']).update(
-                :backup_done => true,
-                :updated_at => Time.now
-            )
+            # Close connection to the backuped job db
+            db_close
+
+            # Reconnect to the service database
+            @settings = merge_config_values(@settings, {:sql_url => ght_service_sql_url})
+
+            # Update DB with backup succedded for job
+            db[:requests].where(:hash => job['hash']).update(:backup_done => true)
 
             debug "Backuper: Backing done for #{job['email']} -> #{job['id']}"
           rescue Exception => e
