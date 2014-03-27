@@ -3,8 +3,9 @@
 \section{Limitations}
 \label{sec:limitations}
 
-Designing and implementing a robust and scalable lean \ght service was a challenging endeavour.
-Still, in its current implementation lean \ght has a number of limitations.
+%Designing and implementing a robust and scalable lean \ght service was a challenging endeavour.
+%Still, in its current implementation 
+Currently, lean \ght has a number of limitations.
 First, dumps contain only the first order dependencies (e.g., contributors to a repository and their followers, but not followers of these
 followers).
 Second, depending on the size of the request and the load on \ght servers at that time, creating the dumps
@@ -13,6 +14,7 @@ Third, no recovery actions in case of errors are currently implemented, potentia
 e.g., if \gh fails to answer an API request.
 Researchers using lean \ght data are advised to check the integrity of the data dumps themselves and, 
 in case of incomplete data, use the \texttt{ght-retrieve-*} scripts in the
-main GHTorrent distribution to fill in the data holes.
+main GHTorrent distribution to fill in the data holes, or request data from lean \ght again.
 Finally, to limit the load on \ght servers, requests to lean \ght should not exceed 1000 repositories.
-
+Researchers interested in mining more than 1000 repositories for a given study can still use the complete \ght dumps
+available at \url{http://ghtorrent.org/downloads.html} (i.e., not use lean \ght).
