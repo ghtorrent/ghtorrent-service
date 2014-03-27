@@ -17,7 +17,7 @@ timestamp and status (completed, in progress) in
 a relational database.
 Then, for each \gh repository part of the request, the listener posts a message to the queue \circled{2}
 containing the request identifier, timestamp and repository.
-
+%
 On the \ght server side, a dispatcher listens in on the requests queue \circled{3} and interprets the
 messages received as follows.
 First, if the message refers to a request for which no previous messages (asking for different repositories)
@@ -29,7 +29,7 @@ Then, for each message (repository) referring to the same job, a retrieval worke
 as parameters the repository being requested, details for connecting to the job database, and the
 timestamp of the request \circled{5}.
 
-Retrieval workers run in parallel and make extensive use of caching.
+Retrieval workers run in parallel and make use of caching.
 If the main \ght MongoDB database already contains data for this repository,
 %and this data is not too old,
 %(i.e., the difference between the request timestamp and the timestamp of the last update to this data is at
@@ -44,13 +44,13 @@ using a similar \emph{worker queue model}, was described previously~\cite{gousio
 Once a retrieval worker finishes, it posts a message to the responses queue \circled{8} signalling
 the completion of its task.
 
-On the web server side, a response listener handles incoming response messages (one for each repository
+On the web server side, a response listener handles incoming messages (one for each repository
 in each request) \circled{9} and updates the status of the job in the requests database.
-When ``task complete'' messages have been received for all repositories part of a request, data dumps
+When ``task complete'' messages have been received for all repositories in a request, data dumps
 are being created from both the job database (MySQL, having the \ght schema~\cite{gousios2013ghtorent})
-and the main \ght database (MongoDB, only collections---groupings of MongoDB documents---relevant for this
+and the main \ght database (MongoDB, only collections--groupings of MongoDB documents--relevant for this
 request are extracted).
-
+%
 Finally, the request owner is notified via email that her job has completed and the requested data dumps
 are available for download at a given URL.
 \as{This all sounds like a good-weather scenario. Should one describe what happens if something is going wrong? For instance,
@@ -59,7 +59,7 @@ protection of \ght against malicious bots/users that might try to overload \ght 
 
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[width=0.80\textwidth]{figures/schema.pdf}
+\includegraphics[width=0.75\textwidth]{figures/schema.pdf}
 \caption{MySQL database schema~\cite{gousios2013ghtorent}.}
 \label{fig:schema}
 \end{center}

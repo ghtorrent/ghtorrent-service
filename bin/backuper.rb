@@ -76,7 +76,15 @@ class Backuper < GHTorrent::Command
             FileUtils.mv(File.join(@settings['dump']['tmp'], dumpname), @settings['dump']['dir'])
 
             url = @settings['dump']['url_prefix'] + '/' + dumpname
+
             send_dump_succeed(job['email'], job['uname'], url)
+
+            # Update db field to indicate that backup was done for this job
+            db[:requests].where(:hash => job['hash']).update(
+                :backup_done => true,
+                :updated_at => Time.now
+            )
+
             debug "Backuper: Backing done for #{job['email']} -> #{job['id']}"
           rescue Exception => e
             send_dump_failed(job[:email], job[:uname], e.message)

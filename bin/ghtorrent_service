@@ -35,10 +35,15 @@ not_found do
 end
 
 get '/' do
+  # CORS Real deployment
+  response['Access-Control-Allow-Origin'] = 'http://ghtorrent.org/lean'
+  # CORS testing environment
+  response['Access-Control-Allow-Origin'] = 'http://localhost:4000'
   haml :index
 end
 
 get 'requests' do
+
 end
 
 # Basic service logic: Handle a request and render the appropriate templates
@@ -110,7 +115,7 @@ post '/requests' do
     # Consistency checks for reqo and owner names. This is to prevent
     # SQL injections, hopefuly.
     if owner.nil? || !owner.match(/^[0-9a-zA-Z\-_.]+$/)
-      msg = "Ignoring project: #{x} Wrong user name."
+      msg = "Ignoring project: #{x} Wrong owner name."
       logger.warn(msg)
       errors << msg
       next
@@ -243,26 +248,18 @@ end
 __END__
 
 @@index
-!!! 5
-%html
-  %head
-    %meta(charset="utf-8")
-%body
-  .content
-  %form{ :action => "/lean/requests", :method => "post"}
-    %fieldset
-      %label{:for => "name"} Name:
-      %input{:type => "text", :name => "name", :required => true}
-      %br/
-      %label{:for => "mail"} Email:
-      %input{:type => "text", :name => "email", :required => true}
+%form{ :action => "/lean/requests", :method => "post"}
+  %fieldset
+    %label{:for => "name"} Name:
+    %input{:type => "text", :name => "name", :required => true, :id => "name"}
+    %label{:for => "email"} Email:
+    %input{:type => "text", :name => "email", :required => true, :id => "email"}
 
-      %br/
-      %label{:for => "body"} Names of repositories to retrieve (e.g. gousiosg/github-mirror), one per line:
-      %br/
-      %textarea{:name => "repos", :cols => "40", :rows => "30"}
-      %br/
-      %input{:type => "submit", :value => "Send", :class => "button"}
+    %label{:for => "repos"} Names of repositories to retrieve (e.g. gousiosg/github-mirror), one per line:
+    %textarea{:name => "repos", :cols => "60", :rows => "15", :id => "repos"}
+    %br/
+    %input{:type => "button", :value => "Check", :class => "button", :id => "leancheck"}
+    %input{:type => "submit", :value => "Send", :class => "button", :id => "leansubmit", :style => "display: none"}
 
 @@result
 !!! 5
