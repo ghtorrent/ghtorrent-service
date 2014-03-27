@@ -250,9 +250,9 @@ __END__
 %form{ :action => "/lean/requests", :method => "post"}
   %fieldset
     %label{:for => "name"} Name:
-    %input{:type => "text", :name => "name", :required => true}
+    %input{:type => "text", :name => "name", :required => true, :id => "name"}
     %label{:for => "email"} Email:
-    %input{:type => "text", :name => "email", :required => true}
+    %input{:type => "text", :name => "email", :required => true, :id => "email"}
 
     %label{:for => "repos"} Enter the names of the repositories you want to retrieve, one per line:
     %textarea{:name => "repos", :cols => "60", :rows => "15", :id => "repos"}

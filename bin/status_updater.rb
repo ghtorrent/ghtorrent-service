@@ -84,9 +84,12 @@ Connect to a queue and
               debug "StatusUpdater: Set finished flag for job id: #{job_id} (by #{req_contents[:email]}) repo: #{req_contents[:name]}"
             end
 
-            # If all projects are done for the request, start a backup
-            rcs = db.from(:request_contents)\
+            # If all projects are done for the request, start a backup,
+            # unless a backup has already been created for the request.
+            rcs = db.from(:request, :request_contents)\
+                    .where(:request_contents__request_id => :request__id)\
                     .where(:request_contents__request_id => job_id.to_i)\
+                    .where(:request__backup_done => false)\
                     .where(:request_contents__done => false)\
                     .all
 

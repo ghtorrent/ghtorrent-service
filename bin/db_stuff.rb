@@ -43,6 +43,7 @@ module DBStuff
         primary_key :id
         foreign_key :user_id, :users, :null => false
         String :hash, :size => 40, :unique => true
+        TrueClass :backup_done, :null => false, :default => false
         DateTime :created_at, :null => false
         DateTime :updated_at, :null => false, :default => Sequel::CURRENT_TIMESTAMP
       end
