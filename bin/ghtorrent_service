@@ -179,6 +179,7 @@ post '/requests' do
                                :routing_key => JOB_QUEUE_ROUTEKEY})
       end
       send_req_succeed(email, name, req[:hash], "/requests/#{req[:hash]}")
+      send_req_succeed('g.gousios@tudelft.nl', 'Georgios Gousios', req[:hash], "/requests/#{req[:hash]}")
 
       return haml :result, :locals => {:errors => errors,
                                        :url => "/requests/#{req[:hash]}"}
@@ -257,7 +258,7 @@ __END__
       %input{:type => "text", :name => "email", :required => true}
 
       %br/
-      %label{:for => "body"} Enter the names of the repositories you want to retrieve, one per line:
+      %label{:for => "body"} Names of repositories to retrieve (e.g. gousiosg/github-mirror), one per line:
       %br/
       %textarea{:name => "repos", :cols => "40", :rows => "30"}
       %br/
