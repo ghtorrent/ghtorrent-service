@@ -222,6 +222,7 @@ class GHTRepoRetriever
           debug "Finish job_id #{job_id} -> #{owner}/#{repo}"
           send_job_status(job_id, owner, repo, 'FINISHED')
           debug "Sent FINISHED message for  #{job_id} -> #{owner}/#{repo}"
+          job_id = nil # To prevent sending STOPPED messages for done jobs
           ght.dispose
         end
       rescue Bunny::TCPConnectionFailed => e
