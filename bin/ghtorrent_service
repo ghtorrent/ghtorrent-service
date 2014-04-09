@@ -203,7 +203,7 @@ post '/requests' do
   end
 end
 
-# Request status display
+# Request status
 get '/requests/:id' do |id|
 
   if id.nil? or id.strip.empty? or id.size < 40
@@ -218,23 +218,55 @@ get '/requests/:id' do |id|
   end
 
   result = db[:request_contents].where(:request_id => req[:id]).all\
-                       .reduce('<ul>') do |acc, rc|
+                       .reduce({}) do |acc, rc|
     repo = db[:repos].first(:id => rc[:repo_id])
-    status_msgs = db[:request_contents_status].where(:request_content_id => rc[:id]).all
+    status_msgs =
+      db[:request_contents_status].\
+      where(:request_content_id => rc[:id]).\
+      all.\
+      map{|x| x[:created_at] = Time.at(x[:created_at]).to_i; x}
 
-    acc << '<li>' << repo[:name] << '</li>'
-    if status_msgs.size > 0
-      acc << '<ul>'
-      status_msgs.each do |msg|
-        acc << '<li>[' << msg[:created_at].to_s << '] ' << msg[:status] << ' -- ' << msg[:text] << '</li>'
+    req_status =
+      status_msgs.\
+      sort{|x,y| x[:created_at] <=> y[:created_at]}.\
+      find{|x| %w(error stopped finished).include? x[:status].downcase}
+
+    req_status.delete(:id)
+    req_status.delete(:text)
+    req_status.delete(:request_content_id)
+    req_status[:status] = req_status[:status].downcase
+
+    item_status =
+      status_msgs.\
+      select{|x| not %w(error stopped finished).include? x[:status].downcase}.\
+      reduce([]) do |acc1, result|
+        result[:status] = if result[:text].strip.downcase.start_with? 'failed'
+                            :error
+                          else
+                            :ok
+                          end
+        result[:item] = result[:text].downcase.split(/ /).map{|x| x.strip}[-1]
+        result.delete(:text)
+        result.delete(:id)
+        result.delete(:request_content_id)
+        acc1 << result
+        acc1
+      end.\
+      group_by { |x| x[:item]}.\
+      map do |x, y|
+        if y.size > 1
+          y.find{|z| z[:status] == :error}
+        else
+          y
+        end
       end
-      acc << '</ul>'
-    end
-    acc
-  end << '</ul>'
-  
+
+      acc.merge({repo[:name] => {:items => item_status, :req_status => req_status}})
+  end
+
   db_close
-  result
+  content_type 'text/json'
+  result.to_json
 end
 
 public
@@ -266,38 +298,25 @@ __END__
 %html
   %head
     %meta(charset="utf-8")
-%body
-  .content Thanks for using GHTorrent. We sent you an email with a unique URL. Use it to check the status of your request. We will also send you an email when your request is ready to download.
+  %body
+    .content Thanks for using GHTorrent. We sent you an email with a unique URL. Use it to check the status of your request. We will also send you an email when your request is ready to download.
 
-  .content You can view your request status here: url
-
-  - if errors.size > 0
-    .content Your request generated the following warnings:
-    %ul
-      - errors.each do |error|
-        %li= error
-
-
-@@status
-!!! 5
-%html
-  %head
-    %meta(charset="utf-8")
-%body
-  .content
-
+    - if errors.size > 0
+      .content Your request generated the following warnings:
+      %ul
+    - errors.each do |error|
+      %li= error
 
 @@error
 !!! 5
 %html
   %head
     %meta(charset="utf-8")
-%body
-  %h1 Error
-  .content #{error}
-
+  %body
+    %h1 Error
+    .content #{error}
 
 @@ 404
   .error.title
-    Nothing to see here...
+      Nothing to see here...
 
