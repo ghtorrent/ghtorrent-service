@@ -18,25 +18,28 @@ module QueueStuff
   BACKUP_QUEUE_ROUTEKEY = 'ghtorrent.service.backup'
 
   def amqp_connection
-    if @amqp_con.nil? or @amqp_con.closed?
+    if @amqp_con.nil? or @amqp_con.closed? or not @amqp_con.open?
       @amqp_con = Bunny.new(:host => config(:amqp_host),
                             :port => config(:amqp_port),
                             :username => config(:amqp_username),
-                            :password => config(:amqp_password))
+                            :password => config(:amqp_password),
+                            :automatic_recovery => false)
       @amqp_con.start
       debug "Connection to #{config(:amqp_host)} succeeded"
       @amqp_channel = nil
+      @amqp_exch = nil
+      @amqp_queues = nil
     end
     @amqp_con
   end
 
   def amqp_channel
-    if @amqp_channel.nil? or @amqp_channel.closed?
-      @amqp_channel ||= amqp_connection.create_channel
+    if @amqp_channel.nil? or not @amqp_channel.open? or not @amqp_con.open?
+      @amqp_channel = amqp_connection.create_channel
       debug "Setting prefetch to #{config(:amqp_prefetch)}"
       @amqp_channel.prefetch(config(:amqp_prefetch))
       @amqp_exch = nil
-      @amqp_queue = nil
+      @amqp_queues = nil
     end
     @amqp_channel
   end
