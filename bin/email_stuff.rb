@@ -15,7 +15,7 @@ Dear %s,
 Your request succedeed. Your request id is: %s.
 You can view your request's status here:
 
-  http://ghtorrent.org/lean%s
+  http://ghtorrent.org/leanprogress.html?id=%s
 
 When your request has finished processing, you will receive a new email.
 
@@ -62,8 +62,8 @@ The GHTorrent team
   
   EMAIL
 
-  def send_req_succeed(email, name, id, url)
-    text = sprintf(REQ_SUCCEEDED, Time.now, name, id, url)
+  def send_req_succeed(email, name, id)
+    text = sprintf(REQ_SUCCEEDED, Time.now, name, id, id)
     send_email(email, text)
   end
 
