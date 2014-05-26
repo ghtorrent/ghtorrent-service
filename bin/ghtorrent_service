@@ -211,8 +211,8 @@ get '/requests/:id' do |id|
   # CORS testing environment
   response['Access-Control-Allow-Origin'] = 'http://localhost:4000'
 
-
   if id.nil? or id.strip.empty? or id.size < 40
+    status 400
     return haml :error, :locals => {:error => 'Incorrect request id'}
   end
 
@@ -220,6 +220,7 @@ get '/requests/:id' do |id|
   req = db[:requests].first(:hash => id)
 
   if req.nil?
+    status 404
     return haml :error, :locals => {:error => 'Non-existent request'}
   end
 
@@ -329,6 +330,6 @@ __END__
     .content #{error}
 
 @@ 404
-  .error.title
-      Nothing to see here...
+.error.title
+  Nothing to see here...
 
