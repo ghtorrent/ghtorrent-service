@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
 
-gem 'ghtorrent', '>=0.9'
+gem 'ghtorrent', :git => 'git@github.com:gousiosg/github-mirror.git' 
 gem 'sinatra'
 gem 'haml'
