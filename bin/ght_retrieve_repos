@@ -8,6 +8,7 @@ require 'ghtorrent'
 require 'bunny'
 require 'uri'
 require 'queue_stuff'
+require 'email_stuff'
 require 'formats'
 
 
@@ -118,6 +119,7 @@ class GHTRepoRetriever
   include GHTorrent::Retriever
   include GHTorrent::Persister
 
+  include EmailStuff 
   include QueueStuff
 
   def initialize(config, queue, logger)
@@ -210,8 +212,12 @@ class GHTRepoRetriever
             next
           end
 
-          repo_entry = ght.transaction { ght.ensure_repo(owner, repo) }
-
+          repo_entry = ght.transaction { ght.ensure_repo(owner, repo, 
+                                                         commits = false, 
+                                                         project_members = false,
+                                                         watchers = false, 
+                                                         forks = false, 
+                                                         labels = false) }
           if repo_entry.nil?
             warn("Cannot find repository #{owner}/#{repo}")
             send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
@@ -268,6 +274,7 @@ class GHTRepoRetriever
   end
 
   def send_job_status(job_id, owner, repo, status, details = '')
+    debug("sending job status: #{job_id} #{owner} #{repo} #{status} @#{details}@")
     amqp_exchange.publish("#{job_id} #{owner} #{repo} #{status} @#{details}@",
                           {:timestamp => Time.now.to_i,
                            :persistent => true,
@@ -281,7 +288,7 @@ class GHTRepoRetriever
       if only_user
         ght.send(function, owner)
       else
-        ght.send(function, owner, repo, refresh = false)
+        ght.send(function, owner, repo)
       end
     rescue Exception
       warn("Error processing #{function} for #{owner}/#{repo}")
