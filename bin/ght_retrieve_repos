@@ -156,7 +156,7 @@ class GHTRepoRetriever
           db_url.path = "/#{db_name}"
           @config = merge_config_values(@config, {:sql_url => db_url.to_s})
 
-          ght = TransactedGhtorrent.new(@config)
+          ght = TransactedGHTorrent.new(@config)
 
           debug "Applicable database URL: #{db_url}"
           case db_url.scheme
@@ -212,12 +212,7 @@ class GHTRepoRetriever
             next
           end
 
-          repo_entry = ght.transaction { ght.ensure_repo(owner, repo, 
-                                                         commits = false, 
-                                                         project_members = false,
-                                                         watchers = false, 
-                                                         forks = false, 
-                                                         labels = false) }
+          repo_entry = ght.transaction { ght.ensure_repo(owner, repo) }
           if repo_entry.nil?
             warn("Cannot find repository #{owner}/#{repo}")
             send_job_status(job_id, owner, repo, 'FAILED', "No such repo #{owner}/#{repo}")
@@ -227,8 +222,8 @@ class GHTRepoRetriever
 
           debug("Retrieving repo #{owner}/#{repo}")
 
-          retrieval_stages = %w(ensure_commits ensure_forks ensure_pull_requests
-            ensure_issues ensure_project_members ensure_watchers ensure_labels)
+          retrieval_stages = %w(ensure_commits ensure_labels ensure_pull_requests
+                                ensure_issues ensure_watchers ensure_forks)
 
           retrieval_stages.each do |x|
             run_retrieval_stage(ght, job_id, owner, repo, x)
@@ -262,7 +257,7 @@ class GHTRepoRetriever
         end
         stopped = true
       rescue Exception => e
-        send_email('G.Gousios@tudelft.nl',
+        send_email('gousiosg@gmail.com',
                    "job_id: #{job_id}, owner: #{owner}, repo: #{repo}\n" +
                        [e.message, e.backtrace.join("\n")].join("\n\n"))
         send_job_status(job_id, owner, repo, 'FAILED', e.message)
@@ -290,8 +285,8 @@ class GHTRepoRetriever
       else
         ght.send(function, owner, repo)
       end
-    rescue Exception
-      warn("Error processing #{function} for #{owner}/#{repo}")
+    rescue Exception => e
+      warn("Error (#{e.class}: #{e.message}) processing #{function} for #{owner}/#{repo}")
       send_job_status(job_id, owner, repo, 'WORKING',
                       "Failed to retrieve #{function.split(/_/)[1..-1].join(' ')}")
     end
