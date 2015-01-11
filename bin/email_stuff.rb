@@ -79,7 +79,7 @@ The GHTorrent team
 
   def send_dump_exception(exception)
     text = sprintf(DUMP_EXCEPTION, Time.now, exception)
-    send_email('G.Gousios@tudelft.nl', text)
+    send_email('gousiosg@gmail.com', text)
   end
 
   def send_email(to, text)

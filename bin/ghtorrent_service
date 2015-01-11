@@ -184,7 +184,7 @@ post '/requests' do
                                :routing_key => JOB_QUEUE_ROUTEKEY})
       end
       send_req_succeed(email, name, req[:hash])
-      send_req_succeed('g.gousios@tudelft.nl', 'Georgios Gousios', req[:hash])
+      send_req_succeed('gousiosg@gmail.com', 'Georgios Gousios', req[:hash])
 
       return haml :result, :locals => {:errors => errors,
                                        :url => "/requests/#{req[:hash]}"}
@@ -193,7 +193,7 @@ post '/requests' do
     logger.error e.message
     logger.error e.backtrace.join("\n")
 
-    send_email('G.Gousios@tudelft.nl',
+    send_email('gousiosg@gmail.com',
                [e.message, e.backtrace.join("\n")].join("\n\n"))
     return haml :error, :locals => {
         :error => 'An error occured that prevented GHTorrent to fullfil your
