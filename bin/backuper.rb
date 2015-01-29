@@ -87,6 +87,7 @@ class Backuper < GHTorrent::Command
 
             # Send email to notify the user on successful backup creation
             send_dump_succeed(job['email'], job['uname'], url)
+            send_dump_succeed('gousiosg@gmail.com', 'Georgios Gousios', url)
 
             # Close connection to the backuped job db
             db_close
@@ -99,7 +100,8 @@ class Backuper < GHTorrent::Command
 
             debug "Backuper: Backing done for #{job['email']} -> #{job['id']}"
           rescue Exception => e
-            send_dump_failed(job[:email], job[:uname], e.message)
+            #send_dump_failed(job[:email], job[:uname], e.message)
+            send_dump_succeed('gousiosg@gmail.com', 'Georgios Gousios', url)
             send_dump_exception([e.message, e.backtrace.join("\n")].join("\n\n"))
             raise e
           ensure

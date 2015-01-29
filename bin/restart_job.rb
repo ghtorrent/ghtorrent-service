@@ -29,6 +29,7 @@ puts "Restarting job #{job_id}"
 repos = db.from(:request_contents, :repos)\
   .where(:repos__id => :request_contents__repo_id)\
   .where(:request_contents__request_id => job_id)\
+  .where(:request_contents__done => 0)
   .select(:repos__name)\
   .all
 
