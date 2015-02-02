@@ -125,9 +125,15 @@ class Backuper < GHTorrent::Command
   end
 
   def mongo
+    unless @mongo.nil?
+      return @mongo
+    end
+
     @mongo ||= Mongo::Connection.new(@settings['mongo']['host'],
                                      @settings['mongo']['port'])\
                                 .db(@settings['mongo']['db'])
+    @mongo.authenticate(@settings['mongo']['username'], 
+                        @settings['mongo']['password'])
     @mongo
   end
 
